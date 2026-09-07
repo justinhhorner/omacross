@@ -214,3 +214,27 @@ test("a board is as big as the picture, whatever the difficulty label says", () 
   assert.equal(state.board.length, 9)
   assert.equal(state.totalMs, Game.difficultyFor("hard").seconds * 1000)
 })
+
+test("the clock pads only the halves that need it", () => {
+  assert.equal(Game.formatClock(90000), "01:30")
+  assert.equal(Game.formatClock(599000), "09:59")
+})
+
+test("a game with no clock at all still grades", () => {
+  const state = newGame()
+  state.status = "won"
+  state.mistakes = 1
+  state.totalMs = 0
+  assert.equal(Game.grade(state), "CLEARED")
+})
+
+test("winning stops the cursor keys the same way losing does", () => {
+  const state = newGame()
+  for (const [row, col] of [[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]) Game.guess(state, row, col)
+
+  assert.equal(state.status, "won")
+  assert.equal(Game.moveCursor(state, 1, 0), false)
+  // setCursor is bounds-checked but not status-checked: the panel only calls
+  // it while playing, so the board can never be pointed at after the finish.
+  assert.equal(Game.setCursor(state, 2, 2), true)
+})

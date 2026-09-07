@@ -99,3 +99,55 @@ test("windows line endings survive", () => {
   assert.equal(result.name, "CRLF")
   assert.deepEqual(result.cells, [[1, 1], [1, 1]])
 })
+
+test("metadata takes the last value, and an empty one falls back", () => {
+  assert.equal(Puzzle.parse("name = First\nname = Second\n#\n", "x").name, "Second")
+  assert.equal(Puzzle.parse("name =\n#\n", "duck.picross").name, "Duck")
+  // Keys may carry digits and dashes; a picture editor will want its own.
+  assert.deepEqual(Puzzle.classifyLine("map-2 = ok"), { kind: "meta", key: "map-2", value: "ok" })
+})
+
+test("metadata is picked up wherever it sits, including after the rows", () => {
+  assert.equal(Puzzle.parse("##\n##\nauthor = Late\n", "x").author, "Late")
+})
+
+test("a picture with no file name to fall back on is Untitled", () => {
+  const result = Puzzle.parse("#\n")
+  assert.equal(result.name, "Untitled")
+  assert.equal(result.file, "")
+})
+
+test("normalizeRows reads every alias and pads the short rows", () => {
+  assert.deepEqual(Puzzle.normalizeRows(["#*X", "o", "..-_0"]), [
+    [1, 1, 1, 0, 0],
+    [1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0]
+  ])
+})
+
+test("cropping a picture with nothing in it leaves nothing", () => {
+  assert.deepEqual(Puzzle.cropped([]), [])
+  assert.deepEqual(Puzzle.cropped([[0, 0], [0, 0]]), [])
+  assert.deepEqual(Puzzle.columnClues([]), [])
+})
+
+test("padToSquare refuses a picture bigger than the board", () => {
+  // `parse` always asks for a board at least as big as the picture, so this
+  // only bites an editor calling it directly — which is why it is exported.
+  assert.equal(Puzzle.padToSquare([[1], [1], [1]], 2), null)
+  assert.equal(Puzzle.padToSquare([[1, 1, 1]], 2), null)
+  // An odd remainder rounds down, so a 1x2 in a 3x3 sits left of center.
+  assert.deepEqual(Puzzle.padToSquare([[1, 1]], 3), [[0, 0, 0], [1, 1, 0], [0, 0, 0]])
+  // Nothing at all pads out to an empty board, which is an editor's canvas.
+  assert.deepEqual(Puzzle.padToSquare([], 2), [[0, 0], [0, 0]])
+})
+
+test("runs of an empty line are clued zero", () => {
+  assert.deepEqual(Puzzle.runsOf([]), [0])
+})
+
+test("format leaves out metadata a puzzle does not have", () => {
+  // An editor's blank canvas: cells and nothing else.
+  assert.equal(Puzzle.format({ cells: [[1, 0], [0, 1]] }), "\n#.\n.#\n")
+  assert.equal(Puzzle.format({ name: "N", cells: [[1]] }), "name = N\n\n#\n")
+})

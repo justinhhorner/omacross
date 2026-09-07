@@ -63,3 +63,27 @@ test("contradictory clues stop the sweep instead of looping", () => {
 test("a blank grid starts entirely unknown", () => {
   assert.equal(Solver.countUnknown(Solver.blankGrid(4)), 16)
 })
+
+test("a contradiction in a row stops the sweep as surely as one in a column", () => {
+  // Two rows, so a two-wide grid — and a row clue of 3 cannot be laid in it.
+  const result = Solver.solve([[3], [0]], [[1], [1], [1]])
+  assert.equal(result.ok, false)
+  assert.equal(result.solved, false)
+})
+
+test("clues that solve cleanly to a different picture are not solvable", () => {
+  // `parse` derives clues from the cells, so the two can only disagree if
+  // something hand-built them. The check is that solvable means "the solver
+  // reaches this picture", not merely "the solver reaches some picture".
+  const clues = { size: 2, rowClues: [[2], [0]], columnClues: [[1], [1]] }
+  assert.equal(Solver.isLogicallySolvable(Object.assign({ cells: [[1, 1], [0, 0]] }, clues)), true)
+  assert.equal(Solver.isLogicallySolvable(Object.assign({ cells: [[0, 0], [1, 1]] }, clues)), false)
+})
+
+test("a column can be lifted out of the grid and put back", () => {
+  const grid = Solver.blankGrid(3)
+  Solver.writeColumn(grid, 1, [FILL, EMPTY, FILL])
+
+  assert.deepEqual(Solver.columnOf(grid, 1), [FILL, EMPTY, FILL])
+  assert.deepEqual(Solver.columnOf(grid, 0), [UNKNOWN, UNKNOWN, UNKNOWN])
+})
