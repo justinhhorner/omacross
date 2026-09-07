@@ -385,10 +385,17 @@ Panel {
 
     Item {
       id: playView
-      // Measured from the pieces, not from the Column: a child centered with a
-      // horizontal anchor adds nothing to a positioner's implicit width, and
-      // the hint line under the board is wider than the board itself.
-      implicitWidth: Math.max(boardView.implicitWidth, playHint.implicitWidth)
+
+      // The board sets the width, with the header as the floor — three
+      // corners that must not collide. The hint line is deliberately not in
+      // this measurement: letting a sentence of key names decide the panel
+      // size made a 5x5 board sit in the middle of a panel built for the
+      // text under it. It wraps to whatever the board leaves instead.
+      readonly property real headerFloor: 2 * Style.space(10)
+        + clockText.implicitWidth
+        + 2 * Math.max(difficultyLabel.implicitWidth, missCount.measuredWidth)
+
+      implicitWidth: Math.max(boardView.implicitWidth, headerFloor)
       implicitHeight: playStack.implicitHeight
 
     Column {
@@ -466,14 +473,24 @@ Panel {
           }
         }
 
+        // Right-aligned by measuring the column and aligning the text inside
+        // it, not by anchoring the children to its edge: an anchored child
+        // leaves the Column implicitly zero wide, and the header floor above
+        // is measured from exactly that number.
         Column {
           id: missCount
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.space(1)
+          // A positioner computes its own implicitWidth and will not take an
+          // assignment, so the measurement lives beside it and the children
+          // take their width from that.
+          readonly property real measuredWidth: Math.max(missLabel.implicitWidth, nextPenaltyLabel.implicitWidth)
 
           Text {
-            anchors.right: parent.right
+            id: missLabel
+            width: missCount.measuredWidth
+            horizontalAlignment: Text.AlignRight
             text: root.mistakes === 0 ? "NO MISSES" : root.mistakes + (root.mistakes === 1 ? " MISS" : " MISSES")
             color: root.mistakes === 0 ? root.muted : root.urgent
             font.family: root.fontFamily
@@ -482,7 +499,9 @@ Panel {
             font.letterSpacing: Style.space(1)
           }
           Text {
-            anchors.right: parent.right
+            id: nextPenaltyLabel
+            width: missCount.measuredWidth
+            horizontalAlignment: Text.AlignRight
             text: "next " + Game.formatPenalty(Game.penaltyMsFor(root.mistakes + 1))
             color: root.muted
             font.family: root.fontFamily
@@ -513,13 +532,35 @@ Panel {
         onCellEntered: function(row, col) { root.jumpCursor(row, col) }
       }
 
-      Text {
+      // Keys only. The mouse does the same two things and needs no telling —
+      // and spelling both out was most of the width this panel was carrying.
+      //
+      // Broken across two lines on purpose. Left to wrap, it broke wherever
+      // the narrowest board happened to put it; as a fixed pair of lines the
+      // legend reads the same at every difficulty and fits a 5x5 panel.
+      // Padded into fixed columns and left-aligned inside a centered Column,
+      // so the two rows line up as a legend instead of each being centered on
+      // its own length. The bar font is monospace, which is what makes the
+      // padding land.
+      Column {
         id: playHint
         anchors.horizontalCenter: parent.horizontalCenter
-        text: "click / space  fill      right-click / x  cross out      hjkl  move      ctrl+q  quit"
-        color: Util.alpha(root.muted, 0.85)
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        spacing: Style.space(2)
+
+        Repeater {
+          model: [
+            "space  fill       x       cross out",
+            "hjkl   move       ctrl+q  quit"
+          ]
+
+          Text {
+            required property var modelData
+            text: modelData
+            color: Util.alpha(root.muted, 0.85)
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+        }
       }
     }
     }
