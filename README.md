@@ -70,8 +70,8 @@ and the picture stays hidden — you can try the same one again.
 | `Ctrl+N` | New game (asks first if one is in progress) |
 | `esc` | Close the panel |
 
-On the title screen, `j`/`k` choose a difficulty, `1`/`2`/`3` jump to one, and
-`enter` starts.
+On the title screen, `enter` starts a new game, `j`/`k` choose a difficulty, and
+`1`/`2`/`3` jump straight to one.
 
 ## Pictures
 

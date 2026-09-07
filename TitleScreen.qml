@@ -204,12 +204,16 @@ Item {
     KeyHints {
       id: hint
       anchors.horizontalCenter: parent.horizontalCenter
-      columns: 6
+      columns: 4
       color: Util.alpha(root.muted, 0.85)
       fontFamily: root.fontFamily
       fontSize: Style.font.bodySmall
       opacity: root.progress
-      hints: ["enter", "play", "j k", "difficulty", "ctrl+n", "new game"]
+      // Enter is the way to start from here. Ctrl+N still works — it is the
+      // shortcut that reaches a new game from mid-play — but on the title
+      // screen it does exactly what Enter does, and listing both invited the
+      // reader to look for the difference between "play" and "new game".
+      hints: ["enter", "new game", "j k", "difficulty"]
     }
   }
 }
