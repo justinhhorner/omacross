@@ -38,12 +38,6 @@ Item {
   implicitWidth: Math.max(logoGrid.implicitWidth, hint.implicitWidth, Style.space(260))
   implicitHeight: column.implicitHeight
 
-  function replay() {
-    progress = 0
-    tick = 0
-    reveal.restart()
-  }
-
   NumberAnimation {
     id: reveal
     target: root

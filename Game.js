@@ -58,14 +58,12 @@ function createGame(puzzle, difficultyId) {
     remainingMs: difficulty.seconds * 1000,
     totalMs: difficulty.seconds * 1000,
     mistakes: 0,
-    lastPenaltyMs: 0,
     // Counts down to zero as correct cells are found; the win check is a
     // comparison against a running total rather than a sweep of the board.
     remainingFilled: puzzle.filled,
     status: "playing",
     cursorRow: 0,
-    cursorCol: 0,
-    elapsedMs: 0
+    cursorCol: 0
   }
 }
 
@@ -135,7 +133,6 @@ function guess(state, row, col) {
     state.board[index] = PENALTY
     state.mistakes++
     var cost = penaltyMsFor(state.mistakes)
-    state.lastPenaltyMs = cost
     state.remainingMs = Math.max(0, state.remainingMs - cost)
     result.penaltyMs = cost
   }
@@ -157,7 +154,6 @@ function mark(state, row, col) {
 
 function tick(state, deltaMs) {
   if (state.status !== "playing") return state.status
-  state.elapsedMs += deltaMs
   state.remainingMs = Math.max(0, state.remainingMs - deltaMs)
   checkFinished(state)
   return state.status
@@ -178,11 +174,15 @@ function columnSolved(state, col) {
   return true
 }
 
+function pad2(value) {
+  return (value < 10 ? "0" : "") + value
+}
+
 function formatClock(ms) {
   var total = Math.max(0, Math.ceil(ms / 1000))
   var minutes = Math.floor(total / 60)
   var seconds = total % 60
-  return (minutes < 10 ? "0" : "") + minutes + ":" + (seconds < 10 ? "0" : "") + seconds
+  return pad2(minutes) + ":" + pad2(seconds)
 }
 
 function formatPenalty(ms) {

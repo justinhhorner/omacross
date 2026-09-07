@@ -19,7 +19,6 @@ Item {
   property int cursorRow: 0
   property int cursorCol: 0
   property bool interactive: true
-  property bool showCursor: true
 
   property color foreground: Color.popups.text
   property color accent: Color.accent
@@ -37,16 +36,16 @@ Item {
   readonly property int clueStep: Math.round(cellSize * 0.62)
   readonly property int clueFontSize: size <= 5 ? Style.font.body : Style.font.bodySmall
 
-  readonly property int maxRowClues: {
+  // How many numbers the longest clue in a set needs room for. At least one,
+  // so an all-empty line still reserves the space its `0` is printed in.
+  function longestClue(clues) {
     var most = 1
-    for (var i = 0; i < rowClues.length; i++) most = Math.max(most, rowClues[i].length)
+    for (var i = 0; i < clues.length; i++) most = Math.max(most, clues[i].length)
     return most
   }
-  readonly property int maxColumnClues: {
-    var most = 1
-    for (var i = 0; i < columnClues.length; i++) most = Math.max(most, columnClues[i].length)
-    return most
-  }
+
+  readonly property int maxRowClues: longestClue(rowClues)
+  readonly property int maxColumnClues: longestClue(columnClues)
 
   readonly property int gridSpan: cellSize * size
   readonly property int rowClueWidth: clueStep * maxRowClues + Style.space(6)
@@ -238,7 +237,6 @@ Item {
 
     // Cursor sits above the rules so it stays visible on a major gridline.
     Rectangle {
-      visible: root.showCursor
       x: root.cursorCol * root.cellSize - 1
       y: root.cursorRow * root.cellSize - 1
       width: root.cellSize + 2

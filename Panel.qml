@@ -59,15 +59,29 @@ Panel {
 
   // Passing `board` in is what makes these re-evaluate: Game reads the live
   // array inside `game`, which QML has no way to observe on its own.
-  readonly property var solvedRows: linesSolved(board, true)
-  readonly property var solvedColumns: linesSolved(board, false)
+  readonly property var solvedRows: rowsSolved(board)
+  readonly property var solvedColumns: columnsSolved(board)
 
-  function linesSolved(currentBoard, byRow) {
+  function rowsSolved(currentBoard) {
     var out = []
     if (!game || currentBoard.length === 0) return out
-    for (var i = 0; i < game.size; i++)
-      out.push(byRow ? Game.rowSolved(game, i) : Game.columnSolved(game, i))
+    for (var i = 0; i < game.size; i++) out.push(Game.rowSolved(game, i))
     return out
+  }
+
+  function columnsSolved(currentBoard) {
+    var out = []
+    if (!game || currentBoard.length === 0) return out
+    for (var i = 0; i < game.size; i++) out.push(Game.columnSolved(game, i))
+    return out
+  }
+
+  // "no misses" / "1 miss" / "3 misses" — the header shouts it in caps, the
+  // result screen says it in the middle of a sentence, so the casing is the
+  // caller's business and the pluralisation is stated once.
+  function missesText(count) {
+    if (count === 0) return "no misses"
+    return count + (count === 1 ? " miss" : " misses")
   }
 
   function syncState() {
@@ -405,162 +419,162 @@ Panel {
       implicitWidth: Math.max(boardView.implicitWidth + gutter, headerFloor)
       implicitHeight: playStack.implicitHeight
 
-    Column {
-      id: playStack
-      width: playView.width
-      spacing: Style.space(12)
+      Column {
+        id: playStack
+        width: playView.width
+        spacing: Style.space(12)
 
-      Item {
-        width: playStack.width
-        implicitHeight: Math.max(difficultyLabel.implicitHeight, clockText.implicitHeight, missCount.implicitHeight)
+        Item {
+          width: playStack.width
+          implicitHeight: Math.max(difficultyLabel.implicitHeight, clockText.implicitHeight, missCount.implicitHeight)
 
-        Column {
-          id: difficultyLabel
-          anchors.left: parent.left
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(1)
+          Column {
+            id: difficultyLabel
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(1)
+
+            Text {
+              text: root.difficulty.label.toUpperCase()
+              color: root.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              font.bold: true
+              font.letterSpacing: Style.space(1)
+            }
+            Text {
+              text: root.difficulty.size + "×" + root.difficulty.size
+              color: root.muted
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+          }
 
           Text {
-            text: root.difficulty.label.toUpperCase()
-            color: root.accent
+            id: clockText
+            x: Math.round(difficultyLabel.width
+              + (parent.width - difficultyLabel.width - missCount.width - implicitWidth) / 2)
+            anchors.verticalCenter: parent.verticalCenter
+            text: Game.formatClock(root.remainingMs)
+            color: root.lowOnTime ? root.urgent : root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.display
+            font.bold: true
+
+            // The last minute reads as an alarm without needing a second label.
+            SequentialAnimation on opacity {
+              running: root.lowOnTime
+              loops: Animation.Infinite
+              alwaysRunToEnd: true
+              NumberAnimation { to: 0.45; duration: 500 }
+              NumberAnimation { to: 1.0; duration: 500 }
+            }
+          }
+
+          Text {
+            id: penaltyBadge
+            anchors.horizontalCenter: clockText.horizontalCenter
+            anchors.top: clockText.bottom
+            text: root.penaltyText
+            color: root.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
             font.bold: true
-            font.letterSpacing: Style.space(1)
-          }
-          Text {
-            text: root.difficulty.size + "×" + root.difficulty.size
-            color: root.muted
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-          }
-        }
+            opacity: 0
 
-        Text {
-          id: clockText
-          x: Math.round(difficultyLabel.width
-            + (parent.width - difficultyLabel.width - missCount.width - implicitWidth) / 2)
-          anchors.verticalCenter: parent.verticalCenter
-          text: Game.formatClock(root.remainingMs)
-          color: root.lowOnTime ? root.urgent : root.foreground
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.display
-          font.bold: true
+            SequentialAnimation {
+              id: penaltyPulse
+              NumberAnimation { target: penaltyBadge; property: "opacity"; to: 1; duration: 60 }
+              PauseAnimation { duration: 800 }
+              NumberAnimation { target: penaltyBadge; property: "opacity"; to: 0; duration: 400 }
+            }
 
-          // The last minute reads as an alarm without needing a second label.
-          SequentialAnimation on opacity {
-            running: root.lowOnTime
-            loops: Animation.Infinite
-            alwaysRunToEnd: true
-            NumberAnimation { to: 0.45; duration: 500 }
-            NumberAnimation { to: 1.0; duration: 500 }
-          }
-        }
-
-        Text {
-          id: penaltyBadge
-          anchors.horizontalCenter: clockText.horizontalCenter
-          anchors.top: clockText.bottom
-          text: root.penaltyText
-          color: root.urgent
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.bold: true
-          opacity: 0
-
-          SequentialAnimation {
-            id: penaltyPulse
-            NumberAnimation { target: penaltyBadge; property: "opacity"; to: 1; duration: 60 }
-            PauseAnimation { duration: 800 }
-            NumberAnimation { target: penaltyBadge; property: "opacity"; to: 0; duration: 400 }
+            Connections {
+              target: root
+              function onPenaltyTokenChanged() { penaltyPulse.restart() }
+            }
           }
 
-          Connections {
-            target: root
-            function onPenaltyTokenChanged() { penaltyPulse.restart() }
+          // Right-aligned by measuring the column and aligning the text inside
+          // it, not by anchoring the children to its edge: an anchored child
+          // leaves the Column implicitly zero wide, and the header floor above
+          // is measured from exactly that number.
+          Column {
+            id: missCount
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(1)
+            // A positioner computes its own implicitWidth and will not take an
+            // assignment, so the measurement lives beside it and the children
+            // take their width from that.
+            readonly property real measuredWidth: Math.max(missLabel.implicitWidth, nextPenaltyLabel.implicitWidth)
+
+            Text {
+              id: missLabel
+              width: missCount.measuredWidth
+              horizontalAlignment: Text.AlignRight
+              text: root.missesText(root.mistakes).toUpperCase()
+              color: root.mistakes === 0 ? root.muted : root.urgent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              font.bold: root.mistakes > 0
+              font.letterSpacing: Style.space(1)
+            }
+            Text {
+              id: nextPenaltyLabel
+              width: missCount.measuredWidth
+              horizontalAlignment: Text.AlignRight
+              text: "next " + Game.formatPenalty(Game.penaltyMsFor(root.mistakes + 1))
+              color: root.muted
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
           }
         }
 
-        // Right-aligned by measuring the column and aligning the text inside
-        // it, not by anchoring the children to its edge: an anchored child
-        // leaves the Column implicitly zero wide, and the header floor above
-        // is measured from exactly that number.
-        Column {
-          id: missCount
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(1)
-          // A positioner computes its own implicitWidth and will not take an
-          // assignment, so the measurement lives beside it and the children
-          // take their width from that.
-          readonly property real measuredWidth: Math.max(missLabel.implicitWidth, nextPenaltyLabel.implicitWidth)
+        BoardView {
+          id: boardView
+          // Centering the board as a whole would center the clues-plus-grid
+          // block; shifting it back by half the gutter centers the grid.
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.horizontalCenterOffset: -Math.round(playView.gutter / 2)
+          size: root.game.size
+          board: root.board
+          rowClues: root.game.puzzle.rowClues
+          columnClues: root.game.puzzle.columnClues
+          solvedRows: root.solvedRows
+          solvedColumns: root.solvedColumns
+          cursorRow: root.cursorRow
+          cursorCol: root.cursorCol
+          interactive: root.prompt === ""
+          foreground: root.foreground
+          accent: root.accent
+          urgent: root.urgent
+          muted: root.muted
+          fontFamily: root.fontFamily
+          onGuessRequested: function(row, col) { root.guessAt(row, col) }
+          onMarkRequested: function(row, col) { root.markAt(row, col) }
+          onCellEntered: function(row, col) { root.jumpCursor(row, col) }
+        }
 
-          Text {
-            id: missLabel
-            width: missCount.measuredWidth
-            horizontalAlignment: Text.AlignRight
-            text: root.mistakes === 0 ? "NO MISSES" : root.mistakes + (root.mistakes === 1 ? " MISS" : " MISSES")
-            color: root.mistakes === 0 ? root.muted : root.urgent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            font.bold: root.mistakes > 0
-            font.letterSpacing: Style.space(1)
-          }
-          Text {
-            id: nextPenaltyLabel
-            width: missCount.measuredWidth
-            horizontalAlignment: Text.AlignRight
-            text: "next " + Game.formatPenalty(Game.penaltyMsFor(root.mistakes + 1))
-            color: root.muted
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-          }
+        // Keys only. The mouse does the same two things and needs no telling —
+        // and spelling both out was most of the width this panel was carrying.
+        //
+        // Broken across two lines on purpose. Left to wrap, it broke wherever
+        // the narrowest board happened to put it; as a fixed pair of lines the
+        // legend reads the same at every difficulty and fits a 5x5 panel.
+        KeyHints {
+          id: playHint
+          anchors.horizontalCenter: parent.horizontalCenter
+          columns: 4
+          color: Util.alpha(root.muted, 0.85)
+          fontFamily: root.fontFamily
+          hints: [
+            "space", "fill", "x", "cross out",
+            "hjkl", "move", "ctrl+q", "quit"
+          ]
         }
       }
-
-      BoardView {
-        id: boardView
-        // Centering the board as a whole would center the clues-plus-grid
-        // block; shifting it back by half the gutter centers the grid.
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.horizontalCenterOffset: -Math.round(playView.gutter / 2)
-        size: root.game.size
-        board: root.board
-        rowClues: root.game.puzzle.rowClues
-        columnClues: root.game.puzzle.columnClues
-        solvedRows: root.solvedRows
-        solvedColumns: root.solvedColumns
-        cursorRow: root.cursorRow
-        cursorCol: root.cursorCol
-        interactive: root.prompt === ""
-        foreground: root.foreground
-        accent: root.accent
-        urgent: root.urgent
-        muted: root.muted
-        fontFamily: root.fontFamily
-        onGuessRequested: function(row, col) { root.guessAt(row, col) }
-        onMarkRequested: function(row, col) { root.markAt(row, col) }
-        onCellEntered: function(row, col) { root.jumpCursor(row, col) }
-      }
-
-      // Keys only. The mouse does the same two things and needs no telling —
-      // and spelling both out was most of the width this panel was carrying.
-      //
-      // Broken across two lines on purpose. Left to wrap, it broke wherever
-      // the narrowest board happened to put it; as a fixed pair of lines the
-      // legend reads the same at every difficulty and fits a 5x5 panel.
-      KeyHints {
-        id: playHint
-        anchors.horizontalCenter: parent.horizontalCenter
-        columns: 4
-        color: Util.alpha(root.muted, 0.85)
-        fontFamily: root.fontFamily
-        hints: [
-          "space", "fill", "x", "cross out",
-          "hjkl", "move", "ctrl+q", "quit"
-        ]
-      }
-    }
     }
   }
 
@@ -579,105 +593,104 @@ Panel {
       implicitWidth: Math.max(picture.implicitWidth, resultHint.implicitWidth, stats.implicitWidth)
       implicitHeight: resultStack.implicitHeight
 
-    Column {
-      id: resultStack
-      width: resultView.width
-      spacing: Style.space(14)
+      Column {
+        id: resultStack
+        width: resultView.width
+        spacing: Style.space(14)
 
-      Text {
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: resultView.won ? Game.grade(root.game) : "TIME UP"
-        color: resultView.won ? root.accent : root.urgent
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.display
-        font.bold: true
-        font.letterSpacing: Style.space(4)
-      }
+        Text {
+          anchors.horizontalCenter: parent.horizontalCenter
+          text: resultView.won ? Game.grade(root.game) : "TIME UP"
+          color: resultView.won ? root.accent : root.urgent
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.display
+          font.bold: true
+          font.letterSpacing: Style.space(4)
+        }
 
-      // Won: the picture, finally named. Lost: the grid you got to, still
-      // nameless — the reveal is the prize, so losing does not hand it over.
-      Grid {
-        id: picture
-        anchors.horizontalCenter: parent.horizontalCenter
-        columns: root.game.size
-        spacing: Math.max(1, Style.space(1))
+        // Won: the picture, finally named. Lost: the grid you got to, still
+        // nameless — the reveal is the prize, so losing does not hand it over.
+        Grid {
+          id: picture
+          anchors.horizontalCenter: parent.horizontalCenter
+          columns: root.game.size
+          spacing: Math.max(1, Style.space(1))
 
-        Repeater {
-          model: root.game.size * root.game.size
+          Repeater {
+            model: root.game.size * root.game.size
 
-          Rectangle {
-            id: pictureCellRect
-            required property int index
-            readonly property int row: Math.floor(index / root.game.size)
-            readonly property int col: index % root.game.size
-            readonly property bool solid: resultView.won
-              ? root.game.puzzle.cells[row][col] === 1
-              : root.board[index] === Game.FILLED
+            Rectangle {
+              id: pictureCellRect
+              required property int index
+              readonly property int row: Math.floor(index / root.game.size)
+              readonly property int col: index % root.game.size
+              readonly property bool solid: resultView.won
+                ? root.game.puzzle.cells[row][col] === 1
+                : root.board[index] === Game.FILLED
 
-            width: resultView.pictureCell
-            height: resultView.pictureCell
-            radius: Math.max(1, Style.space(1))
-            color: solid ? root.foreground : Util.alpha(root.foreground, 0.06)
+              width: resultView.pictureCell
+              height: resultView.pictureCell
+              radius: Math.max(1, Style.space(1))
+              color: solid ? root.foreground : Util.alpha(root.foreground, 0.06)
+            }
           }
         }
-      }
 
-      Column {
-        id: stats
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: Style.space(3)
-
-        Text {
+        Column {
+          id: stats
           anchors.horizontalCenter: parent.horizontalCenter
-          text: resultView.won ? root.game.puzzle.name : "Picture not revealed"
-          color: resultView.won ? root.foreground : root.muted
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.heading
-          font.bold: resultView.won
+          spacing: Style.space(3)
+
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: resultView.won ? root.game.puzzle.name : "Picture not revealed"
+            color: resultView.won ? root.foreground : root.muted
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.heading
+            font.bold: resultView.won
+          }
+
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: resultView.won
+              ? Game.formatClock(root.remainingMs) + " left      " + root.missesText(root.mistakes)
+              : root.missesText(root.mistakes) + " cost you the clock"
+            color: root.muted
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+          }
         }
 
-        Text {
+        Row {
           anchors.horizontalCenter: parent.horizontalCenter
-          text: resultView.won
-            ? Game.formatClock(root.remainingMs) + " left      "
-              + (root.mistakes === 0 ? "no misses" : root.mistakes + (root.mistakes === 1 ? " miss" : " misses"))
-            : root.mistakes + (root.mistakes === 1 ? " miss" : " misses") + " cost you the clock"
-          color: root.muted
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-        }
-      }
+          spacing: Style.space(10)
 
-      Row {
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: Style.space(10)
+          Button {
+            text: resultView.won ? "Next picture" : "Try again"
+            bordered: true
+            onClicked: resultView.won ? root.startGame() : root.retryGame()
+          }
 
-        Button {
-          text: resultView.won ? "Next picture" : "Try again"
-          bordered: true
-          onClicked: resultView.won ? root.startGame() : root.retryGame()
+          Button {
+            text: "Title"
+            bordered: true
+            onClicked: root.toTitle()
+          }
         }
 
-        Button {
-          text: "Title"
-          bordered: true
-          onClicked: root.toTitle()
+        KeyHints {
+          id: resultHint
+          anchors.horizontalCenter: parent.horizontalCenter
+          columns: 6
+          color: Util.alpha(root.muted, 0.85)
+          fontFamily: root.fontFamily
+          hints: [
+            "enter", resultView.won ? "next picture" : "try again",
+            "ctrl+n", resultView.won ? "new game" : "new picture",
+            "esc", "close"
+          ]
         }
       }
-
-      KeyHints {
-        id: resultHint
-        anchors.horizontalCenter: parent.horizontalCenter
-        columns: 6
-        color: Util.alpha(root.muted, 0.85)
-        fontFamily: root.fontFamily
-        hints: [
-          "enter", resultView.won ? "next picture" : "try again",
-          "ctrl+n", resultView.won ? "new game" : "new picture",
-          "esc", "close"
-        ]
-      }
-    }
     }
   }
 

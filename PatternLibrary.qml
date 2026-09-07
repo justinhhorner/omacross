@@ -43,10 +43,11 @@ Item {
 
   // Counts per grid size, as a property rather than a function call.
   //
-  // A binding that calls library.countOfSize(n) captures no dependency on
-  // `puzzles` — the read happens inside a function in this component's scope,
-  // not at the binding site — so the title screen would show whatever the count
-  // was when it first painted, which is zero. Reading a property fixes that.
+  // A binding that called a countOfSize(n) function here would capture no
+  // dependency on `puzzles` — the read happens inside a function in this
+  // component's scope, not at the binding site — so the title screen would show
+  // whatever the count was when it first painted, which is zero. Reading a
+  // property fixes that.
   readonly property var counts: {
     var out = ({})
     for (var i = 0; i < puzzles.length; i++) {
@@ -62,10 +63,6 @@ Item {
     return out
   }
 
-  function countOfSize(size) {
-    return counts[size] || 0
-  }
-
   // Deal a picture of the requested size, avoiding an immediate repeat so two
   // games in a row are not the same picture when the folder is small.
   function pick(size, avoidFile) {
@@ -79,19 +76,24 @@ Item {
     return pool[Math.floor(Math.random() * pool.length)]
   }
 
+  // A copy without one key. Both maps are replaced wholesale on every change
+  // rather than mutated, so re-reading a file is always "drop what we knew
+  // about that path, then record what it says now".
+  function copyExcept(map, key) {
+    var out = {}
+    for (var k in map) if (k !== key) out[k] = map[k]
+    return out
+  }
+
   function ingest(path, text) {
     var parsed = Puzzle.parse(text, path)
-    var nextPuzzles = {}
-    var nextFailures = {}
-    for (var p in byPath) nextPuzzles[p] = byPath[p]
-    for (var f in failures) nextFailures[f] = failures[f]
+    var nextPuzzles = copyExcept(byPath, path)
+    var nextFailures = copyExcept(failures, path)
 
     if (parsed.ok) {
       parsed.file = path
       nextPuzzles[path] = parsed
-      delete nextFailures[path]
     } else {
-      delete nextPuzzles[path]
       nextFailures[path] = parsed.error
     }
 
@@ -100,12 +102,8 @@ Item {
   }
 
   function forget(path) {
-    var nextPuzzles = {}
-    var nextFailures = {}
-    for (var p in byPath) if (p !== path) nextPuzzles[p] = byPath[p]
-    for (var f in failures) if (f !== path) nextFailures[f] = failures[f]
-    byPath = nextPuzzles
-    failures = nextFailures
+    byPath = copyExcept(byPath, path)
+    failures = copyExcept(failures, path)
   }
 
   // One FileView per picture file. Instantiator tears a view down when its file

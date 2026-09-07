@@ -17,9 +17,9 @@ var FILL = 1
 function solveLine(clues, known) {
   var length = known.length
   var runs = (clues.length === 1 && clues[0] === 0) ? [] : clues
-  var counts = []
-  for (var i = 0; i < length; i++) counts.push(0)
-  var total = 0
+  var fillCounts = []
+  for (var i = 0; i < length; i++) fillCounts.push(0)
+  var arrangements = 0
   var trial = []
 
   function layEmpty(from, to) {
@@ -41,16 +41,16 @@ function solveLine(clues, known) {
   function place(runIndex, from) {
     if (runIndex === runs.length) {
       if (!layEmpty(from, length)) return
-      total++
-      for (var j = 0; j < length; j++) if (trial[j] === FILL) counts[j]++
+      arrangements++
+      for (var j = 0; j < length; j++) if (trial[j] === FILL) fillCounts[j]++
       return
     }
 
-    // Space this run and every run after it still needs, gaps included.
-    var needed = -1
-    for (var k = runIndex; k < runs.length; k++) needed += runs[k] + 1
+    // Width this run and every run after it occupies together, gaps included.
+    var spanNeeded = -1
+    for (var k = runIndex; k < runs.length; k++) spanNeeded += runs[k] + 1
 
-    for (var start = from; start + needed < length + 1; start++) {
+    for (var start = from; start + spanNeeded <= length; start++) {
       // A known-filled cell in the gap can never be left empty, and moving the
       // run further right only widens that gap — so this line is exhausted.
       if (!layEmpty(from, start)) break
@@ -66,15 +66,27 @@ function solveLine(clues, known) {
 
   place(0, 0)
 
-  if (total === 0) return { ok: false, line: known.slice() }
+  if (arrangements === 0) return { ok: false, line: known.slice() }
 
   var deduced = []
   for (var c = 0; c < length; c++) {
-    if (counts[c] === total) deduced.push(FILL)
-    else if (counts[c] === 0) deduced.push(EMPTY)
+    if (fillCounts[c] === arrangements) deduced.push(FILL)
+    else if (fillCounts[c] === 0) deduced.push(EMPTY)
     else deduced.push(UNKNOWN)
   }
   return { ok: true, line: deduced }
+}
+
+// A column lifted out of the grid and put back, so the column sweep below can
+// read as the same statement as the row sweep rather than as a pair of loops.
+function columnOf(grid, col) {
+  var line = []
+  for (var r = 0; r < grid.length; r++) line.push(grid[r][col])
+  return line
+}
+
+function writeColumn(grid, col, line) {
+  for (var r = 0; r < grid.length; r++) grid[r][col] = line[r]
 }
 
 function blankGrid(size) {
@@ -112,11 +124,9 @@ function solve(rowClues, columnClues) {
     }
 
     for (var c = 0; c < size; c++) {
-      var column = []
-      for (var i = 0; i < size; i++) column.push(grid[i][c])
-      var columnResult = solveLine(columnClues[c], column)
+      var columnResult = solveLine(columnClues[c], columnOf(grid, c))
       if (!columnResult.ok) return { ok: false, solved: false, grid: grid, passes: passes }
-      for (var j = 0; j < size; j++) grid[j][c] = columnResult.line[j]
+      writeColumn(grid, c, columnResult.line)
     }
 
     var after = countUnknown(grid)
@@ -141,6 +151,8 @@ if (typeof module !== "undefined") {
     EMPTY: EMPTY,
     FILL: FILL,
     solveLine: solveLine,
+    columnOf: columnOf,
+    writeColumn: writeColumn,
     blankGrid: blankGrid,
     countUnknown: countUnknown,
     solve: solve,

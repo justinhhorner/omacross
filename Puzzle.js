@@ -80,7 +80,7 @@ function cropped(cells) {
   if (top > bottom || left > right) return []
 
   var out = []
-  for (var r2 = top; r2 <= bottom; r2++) out.push(cells[r2].slice(left, right + 1))
+  for (var row = top; row <= bottom; row++) out.push(cells[row].slice(left, right + 1))
   return out
 }
 
@@ -162,9 +162,9 @@ function parse(text, fileName) {
   var rawRows = []
 
   for (var i = 0; i < lines.length; i++) {
-    var line = classifyLine(lines[i])
-    if (line.kind === "meta") meta[line.key] = line.value
-    else if (line.kind === "row") rawRows.push(line.text)
+    var classified = classifyLine(lines[i])
+    if (classified.kind === "meta") meta[classified.key] = classified.value
+    else if (classified.kind === "row") rawRows.push(classified.text)
   }
 
   if (rawRows.length === 0) return { ok: false, error: "no picture rows found" }
