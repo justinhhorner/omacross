@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Copy this checkout into the Omarchy plugin directory and reload the shell.
+#
+# A symlink will not do: the shell watches ~/.config/omarchy/plugins with
+# `inotifywait -r`, which does not follow a symlink into its target, so edits
+# would never be noticed. Copying keeps the file watcher — and its hot reload —
+# working. A plain rescan only refreshes plugin metadata; changed QML needs the
+# reload that saving into the watched tree triggers, and `--restart` forces it.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+target="${OMACROSS_PLUGIN_DIR:-$HOME/.config/omarchy/plugins/omacross.picross}"
+
+mkdir -p "$target"
+rsync -a --delete \
+  --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'dev' \
+  "$root/" "$target/"
+
+echo "synced -> $target"
+
+if [[ "${1:-}" == "--restart" ]]; then
+  omarchy-restart-shell
+  echo "shell restarted"
+fi

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "omacross.picross",
+  "name": "Omacross",
+  "version": "1.0.0",
+  "author": "Omacross",
+  "license": "MIT",
+  "description": "Mario's Picross in the Omarchy bar. Nonogram puzzles on a themed grid, played with the mouse or with VIM motions.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Omacross",
+    "description": "A picross (nonogram) game: reveal a hidden picture from its row and column clues before the clock runs out.",
+    "category": "Games",
+    "aliases": [
+      "picross",
+      "nonogram",
+      "game",
+      "puzzle",
+      "omacross"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "difficulty": "easy",
+      "patternsDir": ""
+    },
+    "schema": [
+      {
+        "key": "difficulty",
+        "type": "enum",
+        "label": "Starting difficulty",
+        "options": [
+          "easy",
+          "normal",
+          "hard"
+        ],
+        "defaultValue": "easy",
+        "description": "Grid size and clock: easy is 5×5 in 10:00, normal 10×10 in 30:00, hard 15×15 in 45:00."
+      },
+      {
+        "key": "patternsDir",
+        "type": "path",
+        "label": "Extra pictures folder",
+        "defaultValue": "",
+        "description": "A folder of .picross files to play alongside the bundled ones. Defaults to ~/.config/omacross/patterns."
+      }
+    ]
+  }
+}
