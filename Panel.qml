@@ -386,16 +386,23 @@ Panel {
     Item {
       id: playView
 
-      // The board sets the width, with the header as the floor — three
-      // corners that must not collide. The hint line is deliberately not in
-      // this measurement: letting a sentence of key names decide the panel
-      // size made a 5x5 board sit in the middle of a panel built for the
-      // text under it. It wraps to whatever the board leaves instead.
-      readonly property real headerFloor: 2 * Style.space(10)
-        + clockText.implicitWidth
-        + 2 * Math.max(difficultyLabel.implicitWidth, missCount.measuredWidth)
+      // The grid is what the eye centers on, but the row clues hang off its
+      // left side only — so a panel sized to the board as a whole leaves the
+      // grid pushed right by the width of that gutter. Reserving the same
+      // gutter again on the right centers the grid itself, and hands the
+      // header the room it needs to space out.
+      readonly property real gutter: boardView.rowClueWidth
 
-      implicitWidth: Math.max(boardView.implicitWidth, headerFloor)
+      // The floor: difficulty, clock and misses side by side, with a gap
+      // either side of the clock that the panel may grow but never shrink.
+      readonly property real headerGap: Style.space(16)
+      readonly property real headerFloor: difficultyLabel.implicitWidth
+        + missCount.measuredWidth + clockText.implicitWidth + 2 * headerGap
+
+      // The hint line is deliberately absent from this measurement: letting a
+      // sentence of key names decide the panel size made a 5x5 board sit in
+      // the middle of a panel built for the text under it.
+      implicitWidth: Math.max(boardView.implicitWidth + gutter, headerFloor)
       implicitHeight: playStack.implicitHeight
 
     Column {
@@ -431,7 +438,8 @@ Panel {
 
         Text {
           id: clockText
-          anchors.horizontalCenter: parent.horizontalCenter
+          x: Math.round(difficultyLabel.width
+            + (parent.width - difficultyLabel.width - missCount.width - implicitWidth) / 2)
           anchors.verticalCenter: parent.verticalCenter
           text: Game.formatClock(root.remainingMs)
           color: root.lowOnTime ? root.urgent : root.foreground
@@ -451,7 +459,7 @@ Panel {
 
         Text {
           id: penaltyBadge
-          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.horizontalCenter: clockText.horizontalCenter
           anchors.top: clockText.bottom
           text: root.penaltyText
           color: root.urgent
@@ -512,7 +520,10 @@ Panel {
 
       BoardView {
         id: boardView
+        // Centering the board as a whole would center the clues-plus-grid
+        // block; shifting it back by half the gutter centers the grid.
         anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: -Math.round(playView.gutter / 2)
         size: root.game.size
         board: root.board
         rowClues: root.game.puzzle.rowClues
