@@ -367,12 +367,12 @@ Panel {
             }
           }
 
-          Text {
+          KeyHints {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "enter  confirm      esc  keep playing"
+            columns: 4
             color: Util.alpha(root.muted, 0.85)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            fontFamily: root.fontFamily
+            hints: ["enter", "confirm", "esc", "keep playing"]
           }
         }
       }
@@ -549,29 +549,16 @@ Panel {
       // Broken across two lines on purpose. Left to wrap, it broke wherever
       // the narrowest board happened to put it; as a fixed pair of lines the
       // legend reads the same at every difficulty and fits a 5x5 panel.
-      // Padded into fixed columns and left-aligned inside a centered Column,
-      // so the two rows line up as a legend instead of each being centered on
-      // its own length. The bar font is monospace, which is what makes the
-      // padding land.
-      Column {
+      KeyHints {
         id: playHint
         anchors.horizontalCenter: parent.horizontalCenter
-        spacing: Style.space(2)
-
-        Repeater {
-          model: [
-            "space  fill       x       cross out",
-            "hjkl   move       ctrl+q  quit"
-          ]
-
-          Text {
-            required property var modelData
-            text: modelData
-            color: Util.alpha(root.muted, 0.85)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-          }
-        }
+        columns: 4
+        color: Util.alpha(root.muted, 0.85)
+        fontFamily: root.fontFamily
+        hints: [
+          "space", "fill", "x", "cross out",
+          "hjkl", "move", "ctrl+q", "quit"
+        ]
       }
     }
     }
@@ -678,15 +665,17 @@ Panel {
         }
       }
 
-      Text {
+      KeyHints {
         id: resultHint
         anchors.horizontalCenter: parent.horizontalCenter
-        text: resultView.won
-          ? "enter  next picture      ctrl+n  new game      esc  close"
-          : "enter  try again      ctrl+n  new picture      esc  close"
+        columns: 6
         color: Util.alpha(root.muted, 0.85)
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        fontFamily: root.fontFamily
+        hints: [
+          "enter", resultView.won ? "next picture" : "try again",
+          "ctrl+n", resultView.won ? "new game" : "new picture",
+          "esc", "close"
+        ]
       }
     }
     }

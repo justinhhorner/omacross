@@ -201,14 +201,15 @@ Item {
       font.pixelSize: Style.font.bodySmall
     }
 
-    Text {
+    KeyHints {
       id: hint
       anchors.horizontalCenter: parent.horizontalCenter
-      text: "enter  play      j k  difficulty      ctrl+n  new game"
+      columns: 6
       color: Util.alpha(root.muted, 0.85)
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
+      fontFamily: root.fontFamily
+      fontSize: Style.font.bodySmall
       opacity: root.progress
+      hints: ["enter", "play", "j k", "difficulty", "ctrl+n", "new game"]
     }
   }
 }
