@@ -19,10 +19,10 @@
 // Space is deliberately NOT a cell character: that is what lets a prose line
 // ("# a note about this picture") fall through to the comment branch instead
 // of being read as a row of alternating filled and empty cells.
-var FILLED_CHARS = "#*XxOo1@"
-var EMPTY_CHARS = ".-_0"
+var FILLED_CHARS = "#"
+var EMPTY_CHARS = "."
 
-var GRID_LINE = new RegExp("^[" + FILLED_CHARS + EMPTY_CHARS.replace("-", "\\-") + "]+$")
+var GRID_LINE = new RegExp("^[" + FILLED_CHARS + EMPTY_CHARS + "]+$")
 var META_LINE = /^([A-Za-z][A-Za-z0-9_-]*)\s*[:=]\s*(.*)$/
 
 function isFilledChar(character) {

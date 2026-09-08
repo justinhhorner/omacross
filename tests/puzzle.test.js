@@ -21,9 +21,9 @@ test("prose lines are comments, so # stays free to mean filled", () => {
   assert.equal(Puzzle.classifyLine("# #").kind, "comment")
 })
 
-test("every filled alias reads as filled and every empty alias as empty", () => {
-  for (const character of "#*XxOo1@") assert.equal(Puzzle.isFilledChar(character), true, character)
-  for (const character of ".-_0") assert.equal(Puzzle.isFilledChar(character), false, character)
+test("# reads as filled and . as empty", () => {
+  assert.equal(Puzzle.isFilledChar("#"), true)
+  assert.equal(Puzzle.isFilledChar("."), false)
 })
 
 test("parse reads metadata and the picture", () => {
@@ -117,8 +117,8 @@ test("a picture with no file name to fall back on is Untitled", () => {
   assert.equal(result.file, "")
 })
 
-test("normalizeRows reads every alias and pads the short rows", () => {
-  assert.deepEqual(Puzzle.normalizeRows(["#*X", "o", "..-_0"]), [
+test("normalizeRows pads the short rows", () => {
+  assert.deepEqual(Puzzle.normalizeRows(["###", "#", "....."]), [
     [1, 1, 1, 0, 0],
     [1, 0, 0, 0, 0],
     [0, 0, 0, 0, 0]

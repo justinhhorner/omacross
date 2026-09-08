@@ -79,8 +79,8 @@ author = Omacross
 ....#....
 ```
 
-- Any line made only of cell characters is a row of the picture. `#`, `*`, `X`,
-  `x`, `O`, `o`, `1` and `@` are filled; `.`, `-`, `_` and `0` are empty.
+- Any line made only of cell characters is a row of the picture. `#` is
+  filled; `.` is empty.
 - `key = value` (or `key: value`) sets metadata. `name` is what you are shown
   when you solve it; without one, the file name is used.
 - Anything else is a comment. There is no comment character to remember —
