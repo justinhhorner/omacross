@@ -1,9 +1,8 @@
 # Omacross
 
-A picross (nonogram) game that lives in the Omarchy bar. Click the grid icon and
-a hidden picture is waiting behind its row and column clues, on a clock.
+A nonogram game that lives in the Omarchy bar.
 
-Modelled on **Mario's Picross** (Game Boy, 1995): the timer counts *down*, a
+Inspired by one of my favorite game boy games from 1995, **Mario's Picross**. The timer counts *down*, a
 wrong guess costs you time and each further mistake costs more, and the picture
 is not named until you have solved it.
 
@@ -12,16 +11,6 @@ is not named until you have solved it.
 ```bash
 omarchy plugin add https://github.com/<you>/omacross.git --enable
 ```
-
-Or by hand:
-
-```bash
-cp -r . ~/.config/omarchy/plugins/omacross.picross
-omarchy-shell shell rescanPlugins
-omarchy plugin enable omacross.picross
-```
-
-The widget lands on the right of the bar. Move it with `omarchy bar move`.
 
 ## Playing
 
@@ -34,8 +23,8 @@ omarchy-shell omacross toggle
 Pick a difficulty and press `enter`. Difficulty is the grid and the clock
 together:
 
-| | Grid | Clock |
-|---|---|---|
+| Difficulty | Grid | Clock |
+| --- | --- | --- |
 | Easy | 5×5 | 10:00 |
 | Normal | 10×10 | 30:00 |
 | Hard | 15×15 | 45:00 |
@@ -44,7 +33,7 @@ together:
 Wrong, and it is crossed out permanently and the clock takes the hit — **2:00**
 for the first mistake, **4:00** for the second, **8:00** for the third and every
 one after it. **Cross out** a cell you have reasoned is empty; that is a note to
-yourself, it costs nothing and toggles freely.
+yourself.
 
 Solve the picture before the clock runs out and it is finally named, with a
 grade: `PERFECT` (no mistakes), `GREAT`, `GOOD`, or `CLEARED`. Run out of time
@@ -52,15 +41,16 @@ and the picture stays hidden — you can try the same one again.
 
 ### Mouse
 
-| | |
-|---|---|
+| Input | Action |
+| --- | --- |
 | Left click | Fill — the primary move |
 | Right click | Cross out |
 
+
 ### Keyboard
 
-| | |
-|---|---|
+| Key | Action |
+| --- | --- |
 | `h` `j` `k` `l` or arrows | Move the cursor (it wraps at the edges) |
 | `space` | Fill |
 | `x` | Cross out |
@@ -75,7 +65,7 @@ On the title screen, `enter` starts a new game, `j`/`k` choose a difficulty, and
 
 ## Pictures
 
-A picture is a text file. That is the whole format:
+A picture is simply a text file.
 
 ```
 name = Heart
@@ -110,32 +100,6 @@ picture editor is those two functions plus a grid.
 
 38 pictures ship with the plugin — 15 easy, 14 normal, 9 hard.
 
-### Fair by construction
-
-`Solver.js` is a line solver: the constraint propagation a person actually does
-by hand. The test suite runs every bundled picture through it and fails if any
-of them needs a guess. A game that charges you two minutes for a wrong answer
-owes you a puzzle that never requires one — so that rule is enforced, not
-hoped for.
-
-## Theme
-
-Everything is bound to the shell's `Color` singleton, which the Omarchy theme
-switcher reassigns in place. Switch themes mid-game and the board, clues,
-cursor, and clock follow immediately, with the game untouched.
-
-## Settings
-
-Under the widget's settings, or from the CLI:
-
-```bash
-omarchy bar set omacross.picross difficulty hard --json
-omarchy bar set omacross.picross patternsDir /path/to/pictures --json
-```
-
-`difficulty` is the difficulty a fresh panel starts on; changing it in-game is
-per-session and is not written back.
-
 ## Development
 
 ```bash
@@ -159,8 +123,8 @@ Two notes that cost time to find, if you are hacking on this:
 
 ### Layout
 
-| | |
-|---|---|
+| File | Purpose |
+| --- | --- |
 | `Puzzle.js` | Pattern text → picture, clues, and back out again |
 | `Game.js` | The rules: difficulty, guesses, penalties, the clock, grading |
 | `Solver.js` | Line solver, used to prove pictures are fair |

@@ -3,9 +3,9 @@
   "id": "omacross.picross",
   "name": "Omacross",
   "version": "1.0.0",
-  "author": "Omacross",
+  "author": "Justin Horner",
   "license": "MIT",
-  "description": "Mario's Picross in the Omarchy bar. Nonogram puzzles on a themed grid, played with the mouse or with VIM motions.",
+  "description": "Picross (nonogram) puzzles in the Omarchy bar played with VIM motions.",
   "kinds": [
     "bar-widget"
   ],
@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "Omacross",
-    "description": "A picross (nonogram) game: reveal a hidden picture from its row and column clues before the clock runs out.",
+    "description": "A picross (nonogram) game: reveal a hidden picture before the clock runs out.",
     "category": "Games",
     "aliases": [
       "picross",
