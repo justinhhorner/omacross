@@ -19,6 +19,7 @@ Item {
   property string difficultyId: "easy"
   property string notice: ""
   property var library: null
+  property bool opened: false
 
   signal difficultyPicked(string id)
   signal startRequested()
@@ -31,6 +32,11 @@ Item {
   property real progress: 0
   property int tick: 0
   readonly property bool settled: progress >= 1
+
+  // Reopening the panel should replay the reveal rather than show it already
+  // settled from a prior visit, since the Loader that owns this item only
+  // recreates it on a title->elsewhere->title round trip, not on every open.
+  onOpenedChanged: if (opened) { progress = 0; tick = 0; reveal.restart() }
 
   // Measured from the pieces rather than from the Column: children centered
   // with a horizontal anchor do not contribute to a positioner's implicit

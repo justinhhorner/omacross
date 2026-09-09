@@ -13,7 +13,7 @@ import "Game.js" as Game
 // the one place where the state machine becomes properties the view can watch.
 Panel {
   id: root
-  moduleName: "omacross.picross"
+  moduleName: "justinhhorner.picross"
   ipcTarget: "omacross"
 
   // ------------------------------------------------------------------- theme
@@ -47,9 +47,25 @@ Panel {
   property int cursorCol: 0
 
   property string penaltyText: ""
+  property int penaltyRow: -1
+  property int penaltyCol: -1
   // The play screen lives in a Component, so its animation has no id at this
-  // scope. Bumping a counter is the handshake: the badge watches the token.
+  // scope. Bumping a counter is the handshake: the board watches the token.
   property int penaltyToken: 0
+
+  // Drag-select: holding the fill button (mouse or space) and moving keeps
+  // guessing every cell entered, until either a wrong one breaks the streak
+  // or the button is released — whichever comes first re-arms it.
+  property bool dragSelecting: false
+  property bool dragBroken: false
+  readonly property int dragSelectNavDelayMs: 100
+
+  // A mistake that empties the clock still has to be seen as a mistake: cut
+  // straight to the result screen and the wrong-cell reveal underneath it is
+  // gone before it plays. Holding here for a beat is what lets it land.
+  readonly property int mistakeResultDelayMs: 1000
+
+  onOpenedChanged: if (!opened) { dragSelecting = false; dragBroken = false }
 
   readonly property var difficulty: Game.difficultyFor(difficultyId)
   readonly property var puzzle: game ? game.puzzle : null
@@ -112,6 +128,8 @@ Panel {
     game = Game.createGame(next, difficultyId)
     prompt = ""
     screen = "playing"
+    dragSelecting = false
+    dragBroken = false
     syncState()
     clock.restartFrom()
   }
@@ -121,6 +139,8 @@ Panel {
     game = Game.createGame(game.puzzle, difficultyId)
     prompt = ""
     screen = "playing"
+    dragSelecting = false
+    dragBroken = false
     syncState()
     clock.restartFrom()
   }
@@ -130,6 +150,8 @@ Panel {
     prompt = ""
     notice = ""
     screen = "title"
+    dragSelecting = false
+    dragBroken = false
     syncState()
   }
 
@@ -151,16 +173,65 @@ Panel {
   }
 
   function guessAt(row, col) {
-    if (!playing || prompt !== "") return
+    if (!playing || prompt !== "") return null
     var outcome = Game.guess(game, row, col)
-    if (!outcome.changed) return
+    if (!outcome.changed) return outcome
     Game.setCursor(game, row, col)
     syncState()
     if (outcome.penaltyMs > 0) {
       penaltyText = Game.formatPenalty(outcome.penaltyMs)
+      penaltyRow = row
+      penaltyCol = col
       penaltyToken++
     }
-    finishIfOver()
+    // A mistake that ends the game gets a beat before the result screen
+    // covers it, so the player sees the miss that cost them. Every other
+    // ending (a win, or the clock simply running out) has nothing to wait
+    // for and cuts straight there.
+    if (outcome.penaltyMs > 0 && game.status !== "playing") mistakeResultDelay.restart()
+    else finishIfOver()
+    return outcome
+  }
+
+  Timer {
+    id: mistakeResultDelay
+    interval: root.mistakeResultDelayMs
+    onTriggered: root.finishIfOver()
+  }
+
+  // ---------------------------------------------------------- drag-select
+  //
+  // Pressing (mouse) or holding space (keyboard) starts a run; every cell
+  // entered while it's live gets guessed, at most once per
+  // `dragSelectNavDelayMs`, until a wrong one breaks it. Release re-arms.
+  function beginDragSelect(row, col) {
+    dragSelecting = true
+    dragBroken = false
+    jumpCursor(row, col)
+    attemptDragGuess(row, col)
+    dragSelectThrottle.restart()
+  }
+
+  function continueDragSelect(row, col) {
+    if (!dragSelecting || dragBroken || dragSelectThrottle.running) return
+    jumpCursor(row, col)
+    attemptDragGuess(row, col)
+    dragSelectThrottle.restart()
+  }
+
+  function endDragSelect() {
+    dragSelecting = false
+    dragBroken = false
+  }
+
+  function attemptDragGuess(row, col) {
+    var outcome = guessAt(row, col)
+    if (outcome && outcome.penaltyMs > 0) dragBroken = true
+  }
+
+  Timer {
+    id: dragSelectThrottle
+    interval: root.dragSelectNavDelayMs
   }
 
   function markAt(row, col) {
@@ -278,6 +349,7 @@ Panel {
       focus: true
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) { root.handleKey(event) }
+      Keys.onReleased: function(event) { root.handleKeyRelease(event) }
 
       Item {
         id: content
@@ -309,6 +381,7 @@ Panel {
             difficultyId: root.difficultyId
             notice: root.notice
             urgent: root.urgent
+            opened: root.opened
             // Not `library: library`: inside an object declaration an
             // unqualified name resolves to that object's own property first,
             // so the id has to differ from the property it feeds.
@@ -471,30 +544,6 @@ Panel {
             }
           }
 
-          Text {
-            id: penaltyBadge
-            anchors.horizontalCenter: clockText.horizontalCenter
-            anchors.top: clockText.bottom
-            text: root.penaltyText
-            color: root.urgent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            font.bold: true
-            opacity: 0
-
-            SequentialAnimation {
-              id: penaltyPulse
-              NumberAnimation { target: penaltyBadge; property: "opacity"; to: 1; duration: 60 }
-              PauseAnimation { duration: 800 }
-              NumberAnimation { target: penaltyBadge; property: "opacity"; to: 0; duration: 400 }
-            }
-
-            Connections {
-              target: root
-              function onPenaltyTokenChanged() { penaltyPulse.restart() }
-            }
-          }
-
           // Right-aligned by measuring the column and aligning the text inside
           // it, not by anchoring the children to its edge: an anchored child
           // leaves the Column implicitly zero wide, and the header floor above
@@ -552,7 +601,13 @@ Panel {
           urgent: root.urgent
           muted: root.muted
           fontFamily: root.fontFamily
-          onGuessRequested: function(row, col) { root.guessAt(row, col) }
+          penaltyText: root.penaltyText
+          penaltyRow: root.penaltyRow
+          penaltyCol: root.penaltyCol
+          penaltyToken: root.penaltyToken
+          onDragSelectStarted: function(row, col) { root.beginDragSelect(row, col) }
+          onDragSelectMoved: function(row, col) { root.continueDragSelect(row, col) }
+          onDragSelectEnded: root.endDragSelect()
           onMarkRequested: function(row, col) { root.markAt(row, col) }
           onCellEntered: function(row, col) { root.jumpCursor(row, col) }
         }
@@ -721,6 +776,16 @@ Panel {
     if (screen === "playing") handlePlayKey(event, text)
   }
 
+  // Only the fill button's release matters, and only its own key-up (an
+  // autorepeat never fires here) — everything else on the play screen is a
+  // single action with nothing to hold.
+  function handleKeyRelease(event) {
+    if (screen === "playing" && event.key === Qt.Key_Space && !event.isAutoRepeat) {
+      endDragSelect()
+      event.accepted = true
+    }
+  }
+
   function handleTitleKey(event, text) {
     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
       startGame(); event.accepted = true; return
@@ -748,10 +813,28 @@ Panel {
 
   function handlePlayKey(event, text) {
     if (!game) return
-    if (event.key === Qt.Key_Down || text === "j") { moveCursor(1, 0); event.accepted = true; return }
-    if (event.key === Qt.Key_Up || text === "k") { moveCursor(-1, 0); event.accepted = true; return }
-    if (event.key === Qt.Key_Right || text === "l") { moveCursor(0, 1); event.accepted = true; return }
-    if (event.key === Qt.Key_Left || text === "h") { moveCursor(0, -1); event.accepted = true; return }
+
+    // Space's own key-up is handled separately; here, only its initial press
+    // (not the OS's autorepeat while it's held) starts a drag-select run —
+    // the same run a mouse-press starts, guessing the cell under the cursor
+    // and staying live until release or a wrong guess breaks it.
+    if (event.key === Qt.Key_Space) {
+      if (!event.isAutoRepeat) beginDragSelect(cursorRow, cursorCol)
+      event.accepted = true
+      return
+    }
+
+    var dRow = 0, dCol = 0
+    if (event.key === Qt.Key_Down || text === "j") dRow = 1
+    else if (event.key === Qt.Key_Up || text === "k") dRow = -1
+    else if (event.key === Qt.Key_Right || text === "l") dCol = 1
+    else if (event.key === Qt.Key_Left || text === "h") dCol = -1
+
+    if (dRow !== 0 || dCol !== 0) {
+      moveWithinPlay(dRow, dCol)
+      event.accepted = true
+      return
+    }
 
     // The rest of the motions a vim user reaches for without thinking.
     if (text === "0" || text === "^") { jumpCursor(-1, 0); event.accepted = true; return }
@@ -759,9 +842,21 @@ Panel {
     if (text === "g") { jumpCursor(0, -1); event.accepted = true; return }
     if (text === "G") { jumpCursor(game.size - 1, -1); event.accepted = true; return }
 
-    if (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       guessAt(cursorRow, cursorCol); event.accepted = true; return
     }
     if (text === "x" || text === "X") { markAt(cursorRow, cursorCol); event.accepted = true }
+  }
+
+  // A plain move just steps the cursor. While a drag-select run is live it
+  // also guesses the landing cell — throttled to `dragSelectNavDelayMs` so
+  // the keyboard's own autorepeat can't fire selections faster than that.
+  function moveWithinPlay(dRow, dCol) {
+    if (dragSelecting && !dragBroken && dragSelectThrottle.running) return
+    moveCursor(dRow, dCol)
+    if (dragSelecting && !dragBroken) {
+      attemptDragGuess(cursorRow, cursorCol)
+      dragSelectThrottle.restart()
+    }
   }
 }

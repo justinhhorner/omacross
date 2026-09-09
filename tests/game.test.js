@@ -56,13 +56,13 @@ test("a correct guess fills the cell and costs nothing", () => {
   assert.equal(state.remainingFilled, 4)
 })
 
-test("a wrong guess crosses the cell out for good and takes the time", () => {
+test("a wrong guess takes the time but leaves the cell open to try again", () => {
   const state = newGame()
   const result = Game.guess(state, 0, 0)
 
   assert.equal(result.correct, false)
   assert.equal(result.penaltyMs, 120000)
-  assert.equal(Game.cellAt(state, 0, 0), Game.PENALTY)
+  assert.equal(Game.cellAt(state, 0, 0), Game.UNKNOWN)
   assert.equal(state.remainingMs, 480000)
   assert.equal(state.mistakes, 1)
 })
@@ -75,16 +75,23 @@ test("penalties escalate across a game", () => {
   assert.equal(state.mistakes, 2)
 })
 
-test("a decided cell cannot be revisited by either hand", () => {
+test("a filled cell cannot be revisited by either hand", () => {
   const state = newGame()
   Game.guess(state, 1, 1)
   assert.equal(Game.guess(state, 1, 1).changed, false)
   assert.equal(Game.mark(state, 1, 1), false)
+})
 
+test("a forgotten wrong guess can be made again, at a steeper price", () => {
+  const state = newGame()
   Game.guess(state, 0, 0)
-  assert.equal(Game.mark(state, 0, 0), false)
-  assert.equal(Game.guess(state, 0, 0).changed, false)
-  assert.equal(state.mistakes, 1, "a locked mistake is not charged twice")
+  assert.equal(state.mistakes, 1)
+
+  const second = Game.guess(state, 0, 0)
+  assert.equal(second.changed, true)
+  assert.equal(second.correct, false)
+  assert.equal(second.penaltyMs, 240000)
+  assert.equal(state.mistakes, 2, "the board forgot, but the clock didn't")
 })
 
 test("your own cross-out toggles freely and costs nothing", () => {

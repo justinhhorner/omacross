@@ -5,14 +5,14 @@
 // Modelled on Mario's Picross (Game Boy, 1995):
 //   * a countdown, not a stopwatch
 //   * a wrong guess costs time, and each further mistake costs more
-//   * a wrong guess permanently marks that cell as empty — you are told
+//   * a wrong guess is not remembered by the board — only by the clock, so a
+//     forgotten cell can always be tried again (at the going rate)
 //   * correct fills are permanent; only your own crosses can be taken back
 //   * the picture's name is withheld until you have solved it
 
 var UNKNOWN = 0   // untouched
 var FILLED = 1    // correctly filled — locked
 var MARKED = 2    // player's own cross-out, freely toggled
-var PENALTY = 3   // wrong guess — locked, and it cost you
 
 // Grid size and clock together are the difficulty. The original gives every
 // puzzle 30:00 regardless of size; splitting the allowance by size is what
@@ -83,11 +83,11 @@ function solutionAt(state, row, col) {
   return state.puzzle.cells[row][col] ? 1 : 0
 }
 
-// Locked cells are the ones the game has decided about: a confirmed fill and a
-// mistake are both facts, and neither the mouse nor the keyboard may revisit
-// them.
+// A locked cell is a confirmed fill: the one fact the game has decided for
+// good. A mistake decides nothing — the board never records it — so it stays
+// open to the mouse and the keyboard.
 function isLocked(value) {
-  return value === FILLED || value === PENALTY
+  return value === FILLED
 }
 
 // Wraps at the edges. On a board this small, running off the right edge onto
@@ -114,9 +114,9 @@ function checkFinished(state) {
 
 // The primary move: claim a cell is part of the picture.
 //
-// Right, and it stays filled. Wrong, and it is crossed out for good and the
-// clock takes the hit — which is the whole tension of the game, so the result
-// reports the cost for the UI to show.
+// Right, and it stays filled. Wrong, and the clock takes the hit — which is
+// the whole tension of the game, so the result reports the cost for the UI to
+// show — but the cell itself is left exactly as it was, free to guess again.
 function guess(state, row, col) {
   var result = { changed: false, correct: false, penaltyMs: 0, status: state.status }
   if (state.status !== "playing" || !inBounds(state, row, col)) return result
@@ -130,7 +130,6 @@ function guess(state, row, col) {
     state.remainingFilled--
     result.correct = true
   } else {
-    state.board[index] = PENALTY
     state.mistakes++
     var cost = penaltyMsFor(state.mistakes)
     state.remainingMs = Math.max(0, state.remainingMs - cost)
@@ -204,7 +203,6 @@ if (typeof module !== "undefined") {
     UNKNOWN: UNKNOWN,
     FILLED: FILLED,
     MARKED: MARKED,
-    PENALTY: PENALTY,
     DIFFICULTIES: DIFFICULTIES,
     PENALTY_STEPS_MS: PENALTY_STEPS_MS,
     difficultyFor: difficultyFor,

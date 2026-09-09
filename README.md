@@ -30,10 +30,10 @@ together:
 | Hard | 15×15 | 45:00 |
 
 **Fill** a cell you believe is part of the picture. Right, and it stays filled.
-Wrong, and it is crossed out permanently and the clock takes the hit — **2:00**
-for the first mistake, **4:00** for the second, **8:00** for the third and every
-one after it. **Cross out** a cell you have reasoned is empty; that is a note to
-yourself.
+Wrong, and  the clock takes the hit, **2:00** for the first mistake, **4:00** for the
+second, **8:00** for the third and every one after it, so a forgotten cell can
+cost you again. **Cross out** a cell you have reasoned is empty; that is a note
+to yourself.
 
 Solve the picture before the clock runs out and it is finally named, with a
 grade: `PERFECT` (no mistakes), `GREAT`, `GOOD`, or `CLEARED`. Run out of time
@@ -142,7 +142,7 @@ from the rules to anything QML can bind to.
 ## Remove
 
 ```bash
-omarchy plugin remove omacross.picross --yes
+omarchy plugin remove justinhhorner.picross --yes
 ```
 
 ## License
