@@ -187,8 +187,19 @@ Panel {
     screen = "result"
   }
 
-  function guessAt(row, col) {
+  // A filled cell is already correct, so deliberately selecting it again
+  // undoes it instead of bouncing off it — the one way to take back a right
+  // answer. `allowUndo` is true only for the cell a click or drag-select run
+  // starts on; every cell the run enters afterward passes it as false, so
+  // brushing back over your own trail doesn't flicker cells on and off.
+  function guessAt(row, col, allowUndo) {
     if (!playing || prompt !== "") return null
+    if (allowUndo && Game.cellAt(game, row, col) === Game.FILLED) {
+      if (!Game.unguess(game, row, col)) return null
+      Game.setCursor(game, row, col)
+      syncState()
+      return { changed: true, correct: false, penaltyMs: 0, status: game.status }
+    }
     var outcome = Game.guess(game, row, col)
     if (!outcome.changed) return outcome
     Game.setCursor(game, row, col)
@@ -223,14 +234,14 @@ Panel {
     dragSelecting = true
     dragBroken = false
     jumpCursor(row, col)
-    attemptDragGuess(row, col)
+    attemptDragGuess(row, col, true)
     dragSelectThrottle.restart()
   }
 
   function continueDragSelect(row, col) {
     if (!dragSelecting || dragBroken || dragSelectThrottle.running) return
     jumpCursor(row, col)
-    attemptDragGuess(row, col)
+    attemptDragGuess(row, col, false)
     dragSelectThrottle.restart()
   }
 
@@ -239,8 +250,8 @@ Panel {
     dragBroken = false
   }
 
-  function attemptDragGuess(row, col) {
-    var outcome = guessAt(row, col)
+  function attemptDragGuess(row, col, allowUndo) {
+    var outcome = guessAt(row, col, allowUndo)
     if (outcome && outcome.penaltyMs > 0) dragBroken = true
   }
 
@@ -913,7 +924,7 @@ Panel {
     if (text === "G") { jumpCursor(game.size - 1, -1); event.accepted = true; return }
 
     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-      guessAt(cursorRow, cursorCol); event.accepted = true; return
+      guessAt(cursorRow, cursorCol, true); event.accepted = true; return
     }
   }
 
@@ -925,7 +936,7 @@ Panel {
     if (dragSelecting && !dragBroken) {
       if (dragSelectThrottle.running) return
       moveCursor(dRow, dCol)
-      attemptDragGuess(cursorRow, cursorCol)
+      attemptDragGuess(cursorRow, cursorCol, false)
       dragSelectThrottle.restart()
       return
     }

@@ -7,7 +7,7 @@
 //   * a wrong guess costs time, and each further mistake costs more
 //   * a wrong guess is not remembered by the board — only by the clock, so a
 //     forgotten cell can always be tried again (at the going rate)
-//   * correct fills are permanent; only your own crosses can be taken back
+//   * a correct fill can be undone, freeing the cell to be guessed again
 //   * the picture's name is withheld until you have solved it
 
 var UNKNOWN = 0   // untouched
@@ -20,7 +20,7 @@ var MARKED = 2    // player's own cross-out, freely toggled
 var DIFFICULTIES = [
   { id: "easy", label: "Easy", size: 5, seconds: 600 },
   { id: "normal", label: "Normal", size: 10, seconds: 1800 },
-  { id: "hard", label: "Hard", size: 15, seconds: 2700 }
+  { id: "hard", label: "Hard", size: 15, seconds: 1800 }
 ]
 
 // 2:00, then 4:00, then 8:00 for the third and every mistake after it.
@@ -83,9 +83,9 @@ function solutionAt(state, row, col) {
   return state.puzzle.cells[row][col] ? 1 : 0
 }
 
-// A locked cell is a confirmed fill: the one fact the game has decided for
-// good. A mistake decides nothing — the board never records it — so it stays
-// open to the mouse and the keyboard.
+// A locked cell is a confirmed fill: it resists guesses and marks alike until
+// `unguess` deliberately reopens it. A mistake decides nothing — the board
+// never records it — so it stays open to the mouse and the keyboard anyway.
 function isLocked(value) {
   return value === FILLED
 }
@@ -139,6 +139,19 @@ function guess(state, row, col) {
   checkFinished(state)
   result.status = state.status
   return result
+}
+
+// The take-back: unlock a correct fill, returning it to unknown so it can be
+// guessed again. Free of charge — undoing a guess is not a mistake — and it
+// un-counts toward the win.
+function unguess(state, row, col) {
+  if (state.status !== "playing" || !inBounds(state, row, col)) return false
+  var index = indexOf(state, row, col)
+  if (!isLocked(state.board[index])) return false
+
+  state.board[index] = UNKNOWN
+  state.remainingFilled++
+  return true
 }
 
 // The bookkeeping move: cross a cell you have reasoned is empty. Costs
@@ -218,6 +231,7 @@ if (typeof module !== "undefined") {
     moveCursor: moveCursor,
     setCursor: setCursor,
     guess: guess,
+    unguess: unguess,
     mark: mark,
     tick: tick,
     rowSolved: rowSolved,

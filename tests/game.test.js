@@ -56,6 +56,25 @@ test("a correct guess fills the cell and costs nothing", () => {
   assert.equal(state.remainingFilled, 4)
 })
 
+test("a correct guess can be undone, unlocking the cell again", () => {
+  const state = newGame()
+  Game.guess(state, 1, 1)
+  assert.equal(Game.unguess(state, 1, 1), true)
+  assert.equal(Game.cellAt(state, 1, 1), Game.UNKNOWN)
+  assert.equal(state.remainingFilled, 5)
+
+  assert.equal(Game.guess(state, 1, 1).correct, true)
+  assert.equal(state.remainingFilled, 4)
+})
+
+test("undoing an unfilled cell does nothing", () => {
+  const state = newGame()
+  assert.equal(Game.unguess(state, 1, 1), false)
+  Game.mark(state, 1, 1)
+  assert.equal(Game.unguess(state, 1, 1), false)
+  assert.equal(Game.cellAt(state, 1, 1), Game.MARKED)
+})
+
 test("a wrong guess takes the time but leaves the cell open to try again", () => {
   const state = newGame()
   const result = Game.guess(state, 0, 0)
