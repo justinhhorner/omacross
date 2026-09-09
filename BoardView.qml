@@ -45,7 +45,6 @@ Item {
   readonly property int penaltyRevealDelayMs: 250
   readonly property int penaltyShatterDurationMs: 450
 
-  signal markRequested(int row, int col)
   signal cellEntered(int row, int col)
 
   // The drag-select gesture: press starts it (and guesses the pressed cell),
@@ -56,6 +55,13 @@ Item {
   signal dragSelectStarted(int row, int col)
   signal dragSelectMoved(int row, int col)
   signal dragSelectEnded()
+
+  // Same gesture, for crossing out: press starts it (and marks the pressed
+  // cell), moving while the button stays down continues it. There is no
+  // wrong cell to break it — only release ends a mark run.
+  signal dragMarkStarted(int row, int col)
+  signal dragMarkMoved(int row, int col)
+  signal dragMarkEnded()
 
   // Cells shrink as the grid grows so a 15×15 board and its clues still sit in
   // a bar popup without the panel outgrowing the screen.
@@ -419,18 +425,20 @@ Item {
         if (!inside(row, col)) return
         root.cellEntered(row, col)
         if (mouse.buttons & Qt.LeftButton) root.dragSelectMoved(row, col)
+        if (mouse.buttons & Qt.RightButton) root.dragMarkMoved(row, col)
       }
 
       onPressed: function(mouse) {
         var row = cellRow(mouse.y)
         var col = cellColumn(mouse.x)
         if (!inside(row, col)) return
-        if (mouse.button === Qt.RightButton) root.markRequested(row, col)
+        if (mouse.button === Qt.RightButton) root.dragMarkStarted(row, col)
         else root.dragSelectStarted(row, col)
       }
 
       onReleased: function(mouse) {
         if (mouse.button === Qt.LeftButton) root.dragSelectEnded()
+        if (mouse.button === Qt.RightButton) root.dragMarkEnded()
       }
     }
   }

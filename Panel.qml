@@ -60,12 +60,24 @@ Panel {
   property bool dragBroken: false
   readonly property int dragSelectNavDelayMs: 100
 
+  // Drag-mark: the same gesture, but for crossing out. There is no wrong
+  // cell here — marking always succeeds or no-ops — so nothing ever breaks
+  // a mark run; only releasing the button/key ends it. Its own constant, not
+  // a reuse of dragSelectNavDelayMs, since the two paces may want to diverge.
+  property bool dragMarking: false
+  readonly property int dragMarkNavDelayMs: 100
+  // Set from the cell the run started on: marked means this run erases,
+  // unmarked means it marks. Fixed for the whole run so passing back over a
+  // cell it already touched — or lingering on one, which can re-fire the
+  // same cell — never flips it a second time.
+  property bool dragMarkErasing: false
+
   // A mistake that empties the clock still has to be seen as a mistake: cut
   // straight to the result screen and the wrong-cell reveal underneath it is
   // gone before it plays. Holding here for a beat is what lets it land.
   readonly property int mistakeResultDelayMs: 1000
 
-  onOpenedChanged: if (!opened) { dragSelecting = false; dragBroken = false }
+  onOpenedChanged: if (!opened) { dragSelecting = false; dragBroken = false; dragMarking = false }
 
   readonly property var difficulty: Game.difficultyFor(difficultyId)
   readonly property var puzzle: game ? game.puzzle : null
@@ -130,6 +142,7 @@ Panel {
     screen = "playing"
     dragSelecting = false
     dragBroken = false
+    dragMarking = false
     syncState()
     clock.restartFrom()
   }
@@ -141,6 +154,7 @@ Panel {
     screen = "playing"
     dragSelecting = false
     dragBroken = false
+    dragMarking = false
     syncState()
     clock.restartFrom()
   }
@@ -152,6 +166,7 @@ Panel {
     screen = "title"
     dragSelecting = false
     dragBroken = false
+    dragMarking = false
     syncState()
   }
 
@@ -234,11 +249,50 @@ Panel {
     interval: root.dragSelectNavDelayMs
   }
 
+  // ------------------------------------------------------------ drag-mark
+  //
+  // Same shape as drag-select, minus the breaking condition: a mark never
+  // "goes wrong", so a run only ever ends on release. What it does is fixed
+  // at the start rather than toggled per cell — see `dragMarkErasing`.
+  function beginDragMark(row, col) {
+    dragMarking = true
+    dragMarkErasing = playing && Game.cellAt(game, row, col) === Game.MARKED
+    jumpCursor(row, col)
+    dragMarkAt(row, col)
+    dragMarkThrottle.restart()
+  }
+
+  function continueDragMark(row, col) {
+    if (!dragMarking || dragMarkThrottle.running) return
+    jumpCursor(row, col)
+    dragMarkAt(row, col)
+    dragMarkThrottle.restart()
+  }
+
+  function endDragMark() {
+    dragMarking = false
+  }
+
+  Timer {
+    id: dragMarkThrottle
+    interval: root.dragMarkNavDelayMs
+  }
+
   function markAt(row, col) {
     if (!playing || prompt !== "") return
     if (!Game.mark(game, row, col)) return
     Game.setCursor(game, row, col)
     syncState()
+  }
+
+  // Drives a cell toward this run's fixed outcome rather than toggling it —
+  // a cell already there (already marked mid-mark-run, already bare
+  // mid-erase-run) is left alone instead of being flipped back.
+  function dragMarkAt(row, col) {
+    if (!playing || prompt !== "") return
+    var target = dragMarkErasing ? Game.UNKNOWN : Game.MARKED
+    if (Game.cellAt(game, row, col) === target) return
+    markAt(row, col)
   }
 
   function moveCursor(dRow, dCol) {
@@ -608,8 +662,17 @@ Panel {
           onDragSelectStarted: function(row, col) { root.beginDragSelect(row, col) }
           onDragSelectMoved: function(row, col) { root.continueDragSelect(row, col) }
           onDragSelectEnded: root.endDragSelect()
-          onMarkRequested: function(row, col) { root.markAt(row, col) }
-          onCellEntered: function(row, col) { root.jumpCursor(row, col) }
+          onDragMarkStarted: function(row, col) { root.beginDragMark(row, col) }
+          onDragMarkMoved: function(row, col) { root.continueDragMark(row, col) }
+          onDragMarkEnded: root.endDragMark()
+          // Fires on every pointer move over the grid, button or no. A mark
+          // run started from the keyboard (holding x) has no mouse button to
+          // report movement on its own, so this is what lets the mouse keep
+          // marking cells for it as it wanders across the board.
+          onCellEntered: function(row, col) {
+            if (root.dragMarking) root.continueDragMark(row, col)
+            else root.jumpCursor(row, col)
+          }
         }
 
         // Keys only. The mouse does the same two things and needs no telling —
@@ -776,14 +839,13 @@ Panel {
     if (screen === "playing") handlePlayKey(event, text)
   }
 
-  // Only the fill button's release matters, and only its own key-up (an
-  // autorepeat never fires here) — everything else on the play screen is a
-  // single action with nothing to hold.
+  // The fill and cross-out buttons are the only keys worth a release
+  // handler — everything else on the play screen is a single action with
+  // nothing to hold. An autorepeat never reaches here, only the real key-up.
   function handleKeyRelease(event) {
-    if (screen === "playing" && event.key === Qt.Key_Space && !event.isAutoRepeat) {
-      endDragSelect()
-      event.accepted = true
-    }
+    if (screen !== "playing" || event.isAutoRepeat) return
+    if (event.key === Qt.Key_Space) { endDragSelect(); event.accepted = true }
+    else if (event.key === Qt.Key_X) { endDragMark(); event.accepted = true }
   }
 
   function handleTitleKey(event, text) {
@@ -824,6 +886,14 @@ Panel {
       return
     }
 
+    // Same hold-to-run gesture as fill, but for crossing out — and with no
+    // wrong cell to break it, so nothing here ever needs to check dragBroken.
+    if (event.key === Qt.Key_X) {
+      if (!event.isAutoRepeat) beginDragMark(cursorRow, cursorCol)
+      event.accepted = true
+      return
+    }
+
     var dRow = 0, dCol = 0
     if (event.key === Qt.Key_Down || text === "j") dRow = 1
     else if (event.key === Qt.Key_Up || text === "k") dRow = -1
@@ -845,18 +915,27 @@ Panel {
     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       guessAt(cursorRow, cursorCol); event.accepted = true; return
     }
-    if (text === "x" || text === "X") { markAt(cursorRow, cursorCol); event.accepted = true }
   }
 
-  // A plain move just steps the cursor. While a drag-select run is live it
-  // also guesses the landing cell — throttled to `dragSelectNavDelayMs` so
-  // the keyboard's own autorepeat can't fire selections faster than that.
+  // A plain move just steps the cursor. While a drag-select or drag-mark run
+  // is live it also acts on the landing cell — throttled to that run's own
+  // nav-delay constant so the keyboard's autorepeat can't fire faster than
+  // that. Select takes priority on the rare chance both keys are held.
   function moveWithinPlay(dRow, dCol) {
-    if (dragSelecting && !dragBroken && dragSelectThrottle.running) return
-    moveCursor(dRow, dCol)
     if (dragSelecting && !dragBroken) {
+      if (dragSelectThrottle.running) return
+      moveCursor(dRow, dCol)
       attemptDragGuess(cursorRow, cursorCol)
       dragSelectThrottle.restart()
+      return
     }
+    if (dragMarking) {
+      if (dragMarkThrottle.running) return
+      moveCursor(dRow, dCol)
+      dragMarkAt(cursorRow, cursorCol)
+      dragMarkThrottle.restart()
+      return
+    }
+    moveCursor(dRow, dCol)
   }
 }
