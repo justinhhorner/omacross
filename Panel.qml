@@ -30,7 +30,7 @@ Panel {
   // ------------------------------------------------------------------- state
   property string screen: "title"          // title | playing | result
   property string difficultyId: setting("difficulty", "easy")
-  property string prompt: ""               // "" | "quit" | "new"
+  property string prompt: ""               // "" | "quit" | "new" | "hint"
   property string notice: ""
 
   // The live game, or null on the title screen.
@@ -52,6 +52,14 @@ Panel {
   // The play screen lives in a Component, so its animation has no id at this
   // scope. Bumping a counter is the handshake: the board watches the token.
   property int penaltyToken: 0
+
+  // The cells a hint just revealed, and the token that tells the board to
+  // flip them in. `hintAnimating` blocks every input path — mouse (via
+  // BoardView.interactive) and keyboard (via handleKey) alike — until the
+  // board reports the reveal has finished playing.
+  property var hintCells: []
+  property int hintToken: 0
+  property bool hintAnimating: false
 
   // Drag-select: holding the fill button (mouse or space) and moving keeps
   // guessing every cell entered, until either a wrong one breaks the streak
@@ -82,7 +90,7 @@ Panel {
   // gone before it plays. Holding here for a beat is what lets it land.
   readonly property int mistakeResultDelayMs: 1000
 
-  onOpenedChanged: if (!opened) { dragSelecting = false; dragBroken = false; dragMarking = false }
+  onOpenedChanged: if (!opened) { dragSelecting = false; dragBroken = false; dragMarking = false; hintAnimating = false }
 
   readonly property var difficulty: Game.difficultyFor(difficultyId)
   readonly property var puzzle: game ? game.puzzle : null
@@ -143,11 +151,12 @@ Panel {
     notice = ""
     lastFile = next.file
     game = Game.createGame(next, difficultyId)
-    prompt = ""
+    prompt = "hint"
     screen = "playing"
     dragSelecting = false
     dragBroken = false
     dragMarking = false
+    hintAnimating = false
     syncState()
     clock.restartFrom()
   }
@@ -155,11 +164,12 @@ Panel {
   function retryGame() {
     if (!game) return startGame()
     game = Game.createGame(game.puzzle, difficultyId)
-    prompt = ""
+    prompt = "hint"
     screen = "playing"
     dragSelecting = false
     dragBroken = false
     dragMarking = false
+    hintAnimating = false
     syncState()
     clock.restartFrom()
   }
@@ -172,6 +182,7 @@ Panel {
     dragSelecting = false
     dragBroken = false
     dragMarking = false
+    hintAnimating = false
     syncState()
   }
 
@@ -348,6 +359,31 @@ Panel {
     prompt = ""
     if (kind === "quit") toTitle()
     else if (kind === "new") startGame()
+    else if (kind === "hint") applyHint()
+  }
+
+  // The one freebie: a random row and column, revealed before the clock has
+  // taken a single tick off. Declining just drops the prompt and starts play
+  // exactly as before. The board is updated immediately — the win check and
+  // the result screen wait for the flip animation to finish, via
+  // handleHintRevealFinished below, so a puzzle a hint happens to complete
+  // isn't whisked away before the player sees it revealed.
+  function applyHint() {
+    if (!game) return
+    var hint = Game.revealHint(game)
+    syncState()
+    hintCells = (hint && hint.cells) || []
+    if (hintCells.length > 0) {
+      hintAnimating = true
+      hintToken++
+    } else {
+      finishIfOver()
+    }
+  }
+
+  function handleHintRevealFinished() {
+    hintAnimating = false
+    finishIfOver()
   }
 
   // ------------------------------------------------------------------- clock
@@ -494,12 +530,21 @@ Panel {
         color: Util.alpha(Color.popups.background, 0.92)
 
         Column {
+          // Bounded to the panel's actual width, not the prompt's own text —
+          // a small board (easy's 5x5) makes a narrower panel than the
+          // longest prompt sentence, so without a cap and wrapping the text
+          // spills past the card's border instead of staying inside it.
           anchors.centerIn: parent
+          width: parent.width - Style.space(24)
           spacing: Style.space(14)
 
           Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: root.prompt === "quit" ? "Quit this picture?" : "Start a new picture?"
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            text: root.prompt === "quit" ? "Quit this picture?"
+              : root.prompt === "new" ? "Start a new picture?"
+              : "Want a hint?"
             color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.heading
@@ -507,8 +552,11 @@ Panel {
           }
 
           Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "Your progress on this one is lost."
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            text: root.prompt === "hint" ? "Reveal a random row and column for free."
+              : "Your progress on this one is lost."
             color: root.muted
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
@@ -519,13 +567,15 @@ Panel {
             spacing: Style.space(10)
 
             Button {
-              text: root.prompt === "quit" ? "Quit" : "New picture"
+              text: root.prompt === "quit" ? "Quit"
+                : root.prompt === "new" ? "New picture"
+                : "Reveal hint"
               bordered: true
               onClicked: root.confirmPrompt()
             }
 
             Button {
-              text: "Keep playing"
+              text: root.prompt === "hint" ? "No thanks" : "Keep playing"
               bordered: true
               onClicked: root.prompt = ""
             }
@@ -536,7 +586,8 @@ Panel {
             columns: 4
             color: Util.alpha(root.muted, 0.85)
             fontFamily: root.fontFamily
-            hints: ["enter", "confirm", "esc", "keep playing"]
+            hints: root.prompt === "hint" ? ["enter", "reveal hint", "esc", "no thanks"]
+              : ["enter", "confirm", "esc", "keep playing"]
           }
         }
       }
@@ -672,7 +723,7 @@ Panel {
           solvedColumns: root.solvedColumns
           cursorRow: root.cursorRow
           cursorCol: root.cursorCol
-          interactive: root.prompt === ""
+          interactive: root.prompt === "" && !root.hintAnimating
           foreground: root.foreground
           accent: root.accent
           urgent: root.urgent
@@ -682,6 +733,9 @@ Panel {
           penaltyRow: root.penaltyRow
           penaltyCol: root.penaltyCol
           penaltyToken: root.penaltyToken
+          hintCells: root.hintCells
+          hintToken: root.hintToken
+          onHintRevealFinished: root.handleHintRevealFinished()
           onDragSelectStarted: function(row, col) { root.beginDragSelect(row, col) }
           onDragSelectMoved: function(row, col) { root.continueDragSelect(row, col) }
           onDragSelectEnded: root.endDragSelect()
@@ -842,6 +896,10 @@ Panel {
   // One handler for every screen. Modifier combinations are checked first, so
   // Ctrl+N never reaches the title screen's plain-`n` handling.
   function handleKey(event) {
+    // The hint reveal is a short, uninterruptible beat — every key is
+    // swallowed rather than routed anywhere while it plays.
+    if (hintAnimating) { event.accepted = true; return }
+
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
     var text = event.text
 

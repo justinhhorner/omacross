@@ -254,6 +254,58 @@ test("a game with no clock at all still grades", () => {
   assert.equal(Game.grade(state), "CLEARED")
 })
 
+test("a hint fills every solution cell in one random row and column, free", () => {
+  const state = newGame()
+  const original = Math.random
+  Math.random = () => 0.4 // floor(0.4 * 3) === 1, for both row and col
+  try {
+    const hint = Game.revealHint(state)
+    assert.equal(hint.row, 1)
+    assert.equal(hint.col, 1)
+    // Every solution cell the reveal touched, in the order it touched them.
+    assert.deepEqual(hint.cells, [
+      { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 },
+      { row: 0, col: 1 }, { row: 2, col: 1 }
+    ])
+  } finally {
+    Math.random = original
+  }
+
+  // Row 1 ("###") and column 1 (".#.", "###", ".#." down the middle) between
+  // them cover every solution cell of the plus, but nothing outside it.
+  assert.equal(state.remainingFilled, 0)
+  assert.equal(state.status, "won")
+  assert.equal(state.mistakes, 0)
+  assert.equal(state.remainingMs, 600000)
+  assert.equal(Game.cellAt(state, 0, 0), Game.UNKNOWN)
+  assert.equal(Game.cellAt(state, 0, 2), Game.UNKNOWN)
+  assert.equal(Game.cellAt(state, 2, 0), Game.UNKNOWN)
+  assert.equal(Game.cellAt(state, 2, 2), Game.UNKNOWN)
+})
+
+test("a hint leaves cells the picture doesn't want alone, and does nothing once the game is over", () => {
+  const state = newGame()
+  const original = Math.random
+  Math.random = () => 0 // row 0, col 0
+  try {
+    const hint = Game.revealHint(state)
+    assert.deepEqual(hint.cells, [{ row: 0, col: 1 }, { row: 1, col: 0 }])
+  } finally {
+    Math.random = original
+  }
+
+  // Row 0 is ".#." and column 0 is ".#." (down the left edge of the plus) —
+  // (0, 1) and (1, 0) are the only solution cells between them.
+  assert.equal(Game.cellAt(state, 0, 0), Game.UNKNOWN)
+  assert.equal(Game.cellAt(state, 0, 1), Game.FILLED)
+  assert.equal(Game.cellAt(state, 1, 0), Game.FILLED)
+  assert.equal(state.remainingFilled, 3)
+  assert.equal(state.status, "playing")
+
+  state.status = "lost"
+  assert.equal(Game.revealHint(state), null)
+})
+
 test("winning stops the cursor keys the same way losing does", () => {
   const state = newGame()
   for (const [row, col] of [[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]) Game.guess(state, row, col)

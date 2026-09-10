@@ -45,6 +45,31 @@ Item {
   readonly property int penaltyRevealDelayMs: 250
   readonly property int penaltyShatterDurationMs: 450
 
+  // The cells a hint just revealed, in the order to flip them — and a token
+  // to bump to (re)play that reveal, the same handshake as `penaltyToken`.
+  property var hintCells: []
+  property int hintToken: 0
+  readonly property int hintFlipDurationMs: 260
+  readonly property int hintStaggerMs: 40
+  readonly property var hintIndices: hintCells.map(function(c) { return c.row * root.size + c.col })
+
+  // Fires once every cell in `hintCells` has finished flipping, timed off the
+  // same stagger and duration each cell's own animation uses rather than a
+  // per-cell callback — simpler to reason about than coordinating completion
+  // across `size * size` independent delegates.
+  signal hintRevealFinished()
+
+  onHintTokenChanged: {
+    if (hintCells.length === 0) return
+    hintFinishTimer.interval = (hintCells.length - 1) * hintStaggerMs + hintFlipDurationMs
+    hintFinishTimer.restart()
+  }
+
+  Timer {
+    id: hintFinishTimer
+    onTriggered: root.hintRevealFinished()
+  }
+
   signal cellEntered(int row, int col)
 
   // The drag-select gesture: press starts it (and guesses the pressed cell),
@@ -211,10 +236,23 @@ Item {
         property bool wrongReveal: false
         property bool shattering: false
 
+        // A hint fills the board before this cell ever animates, so the fill
+        // color has to be held back — `pendingReveal` keeps the cell reading
+        // as empty until the flip reaches its edge-on midpoint, which is the
+        // moment `hintFlipAnim` below flips it false.
+        property bool pendingReveal: false
+        property real flipScaleX: 1
+
         x: col * root.cellSize
         y: row * root.cellSize
         width: root.cellSize
         height: root.cellSize
+
+        transform: Scale {
+          origin.x: cell.width / 2
+          origin.y: cell.height / 2
+          xScale: cell.flipScaleX
+        }
 
         Connections {
           target: root
@@ -224,6 +262,14 @@ Item {
             cell.shattering = false
             cell.wrongReveal = true
             revealTimer.restart()
+          }
+          function onHintTokenChanged() {
+            var order = root.hintIndices.indexOf(cell.index)
+            if (order === -1) return
+            cell.pendingReveal = true
+            cell.flipScaleX = 1
+            hintFlipDelay.interval = order * root.hintStaggerMs
+            hintFlipDelay.restart()
           }
         }
 
@@ -239,8 +285,23 @@ Item {
           onTriggered: { cell.wrongReveal = false; cell.shattering = false }
         }
 
+        Timer {
+          id: hintFlipDelay
+          onTriggered: hintFlipAnim.restart()
+        }
+
+        // Squash the cell flat, swap in its true color while it's edge-on
+        // and effectively invisible, then unsquash — a cheap stand-in for a
+        // 3D card flip that needs no perspective transform to sell it.
+        SequentialAnimation {
+          id: hintFlipAnim
+          NumberAnimation { target: cell; property: "flipScaleX"; to: 0; duration: root.hintFlipDurationMs / 2; easing.type: Easing.InQuad }
+          ScriptAction { script: cell.pendingReveal = false }
+          NumberAnimation { target: cell; property: "flipScaleX"; to: 1; duration: root.hintFlipDurationMs / 2; easing.type: Easing.OutQuad }
+        }
+
         color: {
-          if (mark === Game.FILLED) return root.foreground
+          if (mark === Game.FILLED && !cell.pendingReveal) return root.foreground
           if (mark === Game.MARKED) return Util.alpha(root.foreground, 0.05)
           return "transparent"
         }

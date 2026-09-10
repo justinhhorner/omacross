@@ -164,6 +164,34 @@ function mark(state, row, col) {
   return true
 }
 
+// A one-time hint: pick a random row and a random column and fill every
+// solution cell in them outright, as if each had been guessed correctly.
+// Free — it costs no time and is never counted as a mistake — which is why
+// it's only ever offered before the clock has started.
+// Records into `cells` (in the order revealed) so the view can play a
+// staggered reveal animation over exactly — and only — the cells that
+// actually changed.
+function revealCell(state, row, col, cells) {
+  var index = indexOf(state, row, col)
+  if (state.board[index] === FILLED) return
+  if (solutionAt(state, row, col)) {
+    state.board[index] = FILLED
+    state.remainingFilled--
+    cells.push({ row: row, col: col })
+  }
+}
+
+function revealHint(state) {
+  if (state.status !== "playing") return null
+  var row = Math.floor(Math.random() * state.size)
+  var col = Math.floor(Math.random() * state.size)
+  var cells = []
+  for (var c = 0; c < state.size; c++) revealCell(state, row, c, cells)
+  for (var r = 0; r < state.size; r++) revealCell(state, r, col, cells)
+  checkFinished(state)
+  return { row: row, col: col, cells: cells }
+}
+
 function tick(state, deltaMs) {
   if (state.status !== "playing") return state.status
   state.remainingMs = Math.max(0, state.remainingMs - deltaMs)
@@ -233,6 +261,7 @@ if (typeof module !== "undefined") {
     guess: guess,
     unguess: unguess,
     mark: mark,
+    revealHint: revealHint,
     tick: tick,
     rowSolved: rowSolved,
     columnSolved: columnSolved,
