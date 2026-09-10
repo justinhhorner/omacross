@@ -59,6 +59,11 @@ Panel {
   property bool dragSelecting: false
   property bool dragBroken: false
   readonly property int dragSelectNavDelayMs: 100
+  // Set from the cell the run started on: filled means this run undoes,
+  // unfilled means it guesses. Fixed for the whole run so brushing back over
+  // a cell it already touched never flips it a second time — mirrors
+  // dragMarkErasing.
+  property bool dragSelectErasing: false
 
   // Drag-mark: the same gesture, but for crossing out. There is no wrong
   // cell here — marking always succeeds or no-ops — so nothing ever breaks
@@ -233,15 +238,16 @@ Panel {
   function beginDragSelect(row, col) {
     dragSelecting = true
     dragBroken = false
+    dragSelectErasing = playing && Game.cellAt(game, row, col) === Game.FILLED
     jumpCursor(row, col)
-    attemptDragGuess(row, col, true)
+    attemptDragGuess(row, col)
     dragSelectThrottle.restart()
   }
 
   function continueDragSelect(row, col) {
     if (!dragSelecting || dragBroken || dragSelectThrottle.running) return
     jumpCursor(row, col)
-    attemptDragGuess(row, col, false)
+    attemptDragGuess(row, col)
     dragSelectThrottle.restart()
   }
 
@@ -250,8 +256,14 @@ Panel {
     dragBroken = false
   }
 
-  function attemptDragGuess(row, col, allowUndo) {
-    var outcome = guessAt(row, col, allowUndo)
+  // Drives a cell toward this run's fixed outcome (undo or guess) rather
+  // than toggling it — a cell already there is left alone, so brushing back
+  // over the run's own trail never flickers it. Mirrors dragMarkAt.
+  function attemptDragGuess(row, col) {
+    if (!playing || prompt !== "") return
+    var alreadyFilled = Game.cellAt(game, row, col) === Game.FILLED
+    if (dragSelectErasing !== alreadyFilled) return
+    var outcome = guessAt(row, col, dragSelectErasing)
     if (outcome && outcome.penaltyMs > 0) dragBroken = true
   }
 
@@ -676,12 +688,14 @@ Panel {
           onDragMarkStarted: function(row, col) { root.beginDragMark(row, col) }
           onDragMarkMoved: function(row, col) { root.continueDragMark(row, col) }
           onDragMarkEnded: root.endDragMark()
-          // Fires on every pointer move over the grid, button or no. A mark
-          // run started from the keyboard (holding x) has no mouse button to
-          // report movement on its own, so this is what lets the mouse keep
-          // marking cells for it as it wanders across the board.
+          // Fires on every pointer move over the grid, button or no. A
+          // select or mark run started from the keyboard (holding space or
+          // x) has no mouse button to report movement on its own, so this is
+          // what lets the mouse keep driving it as it wanders across the
+          // board.
           onCellEntered: function(row, col) {
-            if (root.dragMarking) root.continueDragMark(row, col)
+            if (root.dragSelecting) root.continueDragSelect(row, col)
+            else if (root.dragMarking) root.continueDragMark(row, col)
             else root.jumpCursor(row, col)
           }
         }
@@ -936,7 +950,7 @@ Panel {
     if (dragSelecting && !dragBroken) {
       if (dragSelectThrottle.running) return
       moveCursor(dRow, dCol)
-      attemptDragGuess(cursorRow, cursorCol, false)
+      attemptDragGuess(cursorRow, cursorCol)
       dragSelectThrottle.restart()
       return
     }
