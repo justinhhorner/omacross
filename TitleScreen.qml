@@ -213,7 +213,7 @@ Item {
       // shortcut that reaches a new game from mid-play — but on the title
       // screen it does exactly what Enter does, and listing both invited the
       // reader to look for the difference between "play" and "new game".
-      hints: ["enter", "new game", "j k", "difficulty"]
+      hints: ["enter", "new game", "j k", "difficulty", "e", "pattern editor"]
     }
   }
 }

@@ -151,3 +151,56 @@ test("format leaves out metadata a puzzle does not have", () => {
   assert.equal(Puzzle.format({ cells: [[1, 0], [0, 1]] }), "\n#.\n.#\n")
   assert.equal(Puzzle.format({ name: "N", cells: [[1]] }), "name = N\n\n#\n")
 })
+
+test("pinSize writes a size = WxH line ahead of the picture", () => {
+  const text = Puzzle.format({ name: "Dot", cells: [[0, 0, 0], [0, 1, 0], [0, 0, 0]], pinSize: true })
+  assert.equal(text, "name = Dot\nsize = 3x3\n\n...\n.#.\n...\n")
+})
+
+test("pinSize on a cell-less puzzle writes size = 0x0 rather than throwing", () => {
+  assert.equal(Puzzle.format({ cells: [], pinSize: true }), "size = 0x0\n\n")
+})
+
+test("a matching size = WxH line pins the board instead of cropping it", () => {
+  // A single filled cell in a 5x5 canvas would normally crop to 1x1.
+  const result = Puzzle.parse("size = 5x5\n\n.....\n.....\n..#..\n.....\n.....\n", "x")
+  assert.equal(result.ok, true)
+  assert.equal(result.size, 5)
+  assert.deepEqual(result.cells[2], [0, 0, 1, 0, 0])
+})
+
+test("a size line that disagrees with the picture is ignored, not enforced", () => {
+  // 2 rows, not the 5 the size line claims — falls back to crop-and-recenter.
+  const result = Puzzle.parse("size = 5x5\n\n##\n##\n", "x")
+  assert.equal(result.ok, true)
+  assert.equal(result.size, 2)
+
+  // Right row count, wrong width — still a disagreement.
+  const wideMismatch = Puzzle.parse("size = 3x3\n\n#####\n#####\n#####\n", "x")
+  assert.equal(wideMismatch.ok, true)
+  assert.equal(wideMismatch.size, 5)
+})
+
+test("a size line that isn't square, isn't a number, or is zero is ignored", () => {
+  assert.equal(Puzzle.parse("size = 5x4\n\n#####\n#####\n#####\n#####\n#####\n", "x").size, 5)
+  assert.equal(Puzzle.parse("size = huge\n\n###\n###\n###\n", "x").size, 3)
+  assert.equal(Puzzle.parse("size = 0x0\n\n#\n", "x").size, 1)
+})
+
+test("a size line does not excuse an otherwise-empty picture", () => {
+  assert.deepEqual(Puzzle.parse("size = 3x3\n\n...\n...\n...\n", "x"), { ok: false, error: "picture has no filled cells" })
+})
+
+test("pinSize round-trips a small, off-center drawing without recentering it", () => {
+  const original = { name: "Corner", cells: [
+    [0, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0]
+  ], pinSize: true }
+  const parsed = Puzzle.parse(Puzzle.format(original), "corner.picross")
+
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.size, 4)
+  assert.deepEqual(parsed.cells, original.cells)
+})

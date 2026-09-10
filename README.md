@@ -63,6 +63,43 @@ and the picture stays hidden — you can try the same one again.
 On the title screen, `enter` starts a new game, `j`/`k` choose a difficulty, and
 `1`/`2`/`3` jump straight to one.
 
+## Drawing your own
+
+Press `e` on the title screen to open the pattern editor — a floating window
+of its own, so it can sit next to the game rather than replace it. Whatever is
+on the board is always the top row of the list on the left, saved or not — a
+fresh, blank "New Pattern" if you have no patterns of your own yet.
+
+There are two tools, fill and deselect. There is no cross-out here the way
+there is in the game — anything you leave unfilled *is* the "wrong guess"
+the finished puzzle will grade against, so there is nothing more to mark.
+
+| Input | Action |
+| --- | --- |
+| Left click | Fill |
+| Right click | Deselect a filled cell |
+
+| Key | Action |
+| --- | --- |
+| `space` | Fill a cell |
+| `x` | Deselect a filled cell |
+| `h` `j` `k` `l` or ← → | Move the cursor |
+| `↑` `↓` | Move the selection in the pattern list |
+| `enter` | Load the selected pattern (asks first if the current one is unsaved) |
+| `d` | Delete the selected pattern (asks first) |
+| `Ctrl+N` | Start a new pattern (asks first if the current one is unsaved) |
+| `Ctrl+S` | Save the pattern you're drawing |
+| `Ctrl+Q` | Close the editor (asks first if the current one is unsaved) |
+
+Saving asks for a name and writes a `.picross` file under
+`~/.config/omacross/user-patterns/<size>x<size>/`, sized by whatever board you
+were drawing on — a 10×10 stays 10×10 even if the drawing on it only fills a
+corner. That is what the file's `size = WxH` line is for: it pins the board so
+a reload does not crop the empty margin away and recenter what is left, the
+way a plain hand-typed picture does. Those three folders are watched the same
+way the bundled and extra folders are, so a saved pattern is in the deal —
+and counted on the title screen — the moment it lands.
+
 ## Pictures
 
 A picture is simply a text file.
@@ -89,6 +126,10 @@ author = Omacross
 - Ragged rows are padded, empty margins are trimmed, and a non-square drawing is
   centered in a square board. The resulting size decides the difficulty it is
   dealt at, so a picture must come out 5×5, 10×10 or 15×15.
+- A `size = WxH` metadata line skips that trimming and recentering: it pins
+  the board to exactly the picture's own raw dimensions, provided they
+  already match. The pattern editor writes this on every save, which is how
+  it keeps a drawing at the size — and in the exact position — it was drawn.
 
 Drop your own into `~/.config/omacross/patterns/` (or set **Extra pictures
 folder** in the widget's settings). Both folders are watched — save a file in
@@ -132,7 +173,9 @@ Two notes that cost time to find, if you are hacking on this:
 | `Panel.qml` | Bar widget: the clock, input routing, and the three screens |
 | `BoardView.qml` | The grid and its clues |
 | `TitleScreen.qml` | The mark assembling out of static, and difficulty |
-| `PatternLibrary.qml` | Watches both picture folders |
+| `PatternLibrary.qml` | Watches the bundled, extra, and per-size user-pattern folders |
+| `PatternEditor.js` | The editor's own tiny state machine: fill, save |
+| `PatternEditor.qml` | The floating drawing window and its pattern list |
 
 The rules are plain JavaScript with no QML in them, which is why `tests/` can
 play whole games. `Panel.qml` holds the state machine in a plain object and

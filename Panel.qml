@@ -32,6 +32,9 @@ Panel {
   property string difficultyId: setting("difficulty", "easy")
   property string prompt: ""               // "" | "quit" | "new" | "hint"
   property string notice: ""
+  // The pattern editor is its own floating window, not another screen here —
+  // it can stay open while this panel sits on the title screen underneath.
+  property bool editorOpen: false
 
   // The live game, or null on the title screen.
   property var game: null
@@ -419,6 +422,17 @@ Panel {
     extraDir: root.setting("patternsDir", "")
   }
 
+  PatternEditor {
+    id: patternEditor
+    opened: root.editorOpen
+    library: patternLibrary
+    foreground: root.foreground
+    accent: root.accent
+    urgent: root.urgent
+    muted: root.muted
+    fontFamily: root.fontFamily
+    onClosed: root.editorOpen = false
+  }
 
   // -------------------------------------------------------------- bar trigger
   //
@@ -942,8 +956,9 @@ Panel {
       stepDifficulty(-1); event.accepted = true; return
     }
     if (text === "1" || text === "2" || text === "3") {
-      pickDifficulty(Game.DIFFICULTIES[Number(text) - 1].id); event.accepted = true
+      pickDifficulty(Game.DIFFICULTIES[Number(text) - 1].id); event.accepted = true; return
     }
+    if (text === "e" || text === "E") { root.editorOpen = true; event.accepted = true }
   }
 
   function handleResultKey(event, text) {

@@ -152,6 +152,26 @@ function countFilled(cells) {
   return total
 }
 
+// A `size = WxH` meta line pins the board instead of letting it fall out of
+// the drawing. Honored only when it is square and matches the picture's own
+// raw dimensions exactly — a stale or hand-typed value that disagrees with
+// what is actually there falls back to the usual crop-and-recenter rather
+// than silently padding or truncating a mismatch. This is what lets the
+// pattern editor promise a board never comes back smaller than it was drawn:
+// it always writes the full canvas *and* the size that names it, so an empty
+// margin the artist meant to keep is never mistaken for one they just never
+// got to.
+function declaredSize(rawSize, normalized) {
+  var match = /^\s*(\d+)\s*x\s*(\d+)\s*$/i.exec(String(rawSize || ""))
+  if (!match) return 0
+  var width = Number(match[1])
+  var height = Number(match[2])
+  if (width !== height || width <= 0) return 0
+  if (normalized.length !== height) return 0
+  if (normalized[0].length !== width) return 0
+  return width
+}
+
 // Parse one pattern file. Returns `{ ok: false, error }` rather than throwing,
 // because the caller is a QML file watcher loading whatever the user just
 // saved into their patterns directory — a typo there must not take the panel
@@ -169,13 +189,24 @@ function parse(text, fileName) {
 
   if (rawRows.length === 0) return { ok: false, error: "no picture rows found" }
 
-  var cells = cropped(normalizeRows(rawRows))
-  if (cells.length === 0) return { ok: false, error: "picture has no filled cells" }
+  var normalized = normalizeRows(rawRows)
+  var pinned = declaredSize(meta.size, normalized)
 
-  var height = cells.length
-  var width = cells[0].length
-  var size = Math.max(height, width)
-  var squared = padToSquare(cells, size)
+  var size, squared
+  if (pinned) {
+    size = pinned
+    squared = normalized
+  } else {
+    var cells = cropped(normalized)
+    if (cells.length === 0) return { ok: false, error: "picture has no filled cells" }
+    size = Math.max(cells.length, cells[0].length)
+    squared = padToSquare(cells, size)
+  }
+
+  // Only the pinned path can still be blank here — `cropped` already refused
+  // an unfilled picture above, and padding an already-non-empty crop never
+  // erases it.
+  if (pinned && countFilled(squared) === 0) return { ok: false, error: "picture has no filled cells" }
 
   return {
     ok: true,
@@ -193,10 +224,16 @@ function parse(text, fileName) {
 // Render a puzzle back to the canonical file text. This is the other half of
 // the editor contract: a tool can `parse` a file, edit `cells`, and `format`
 // it back out without inventing its own writer.
+//
+// `puzzle.pinSize` writes the `size = WxH` line `parse` looks for above —
+// opt in, since it changes what a reload does with an empty margin. Every
+// existing bundled picture relies on the plain crop-and-recenter behavior,
+// so this only fires for a caller that asks for it (the pattern editor).
 function format(puzzle) {
   var out = []
   if (puzzle.name) out.push("name = " + puzzle.name)
   if (puzzle.author) out.push("author = " + puzzle.author)
+  if (puzzle.pinSize) out.push("size = " + puzzle.cells.length + "x" + (puzzle.cells[0] ? puzzle.cells[0].length : 0))
   out.push("")
   for (var r = 0; r < puzzle.cells.length; r++) {
     var row = ""

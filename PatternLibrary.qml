@@ -4,6 +4,7 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import "Puzzle.js" as Puzzle
+import "PatternEditor.js" as Editor
 
 // Every picture the game can deal, from two folders: the ones bundled with the
 // plugin, and a folder of the player's own. Both are watched, so saving a file
@@ -22,6 +23,32 @@ Item {
   readonly property string userDir: extraDir !== ""
     ? extraDir
     : Quickshell.env("HOME") + "/.config/omacross/patterns"
+
+  // Where the pattern editor saves what a player draws — a sibling folder
+  // per grid size, so a save never has to guess a difficulty from a picture's
+  // shape the way loading an arbitrary `.picross` file does.
+  readonly property string userPatternsRoot: Quickshell.env("HOME") + "/.config/omacross/user-patterns"
+
+  function userPatternsDirFor(size) {
+    return userPatternsRoot + "/" + Editor.dirNameForSize(size)
+  }
+
+  // Puzzles the editor itself is responsible for, as opposed to the bundled
+  // set or a player's separately-configured extra folder — what its own
+  // pattern list shows, and what a delete there is allowed to remove.
+  readonly property var editorPuzzles: puzzles.filter(function(p) {
+    return p.file.indexOf(root.userPatternsRoot + "/") === 0
+  })
+
+  // The three size folders may not exist yet on a fresh install; the
+  // FolderListModels below tolerate a missing folder as simply empty, but a
+  // save has nowhere to land until this has run once.
+  Process {
+    id: ensureDirsProc
+    command: ["mkdir", "-p",
+      root.userPatternsDirFor(5), root.userPatternsDirFor(10), root.userPatternsDirFor(15)]
+  }
+  Component.onCompleted: ensureDirsProc.running = true
 
   // file path -> parsed puzzle. Reassigned wholesale on every change so the
   // `puzzles` binding below re-runs; mutating it in place would not.
@@ -132,6 +159,69 @@ Item {
   Instantiator {
     model: FolderListModel {
       folder: "file://" + root.userDir
+      nameFilters: ["*.picross"]
+      showDirs: false
+      sortField: FolderListModel.Name
+    }
+
+    delegate: FileView {
+      required property string filePath
+      path: filePath
+      watchChanges: true
+      printErrors: false
+      onLoaded: root.ingest(filePath, text())
+      onFileChanged: reload()
+      onLoadFailed: root.forget(filePath)
+      Component.onDestruction: root.forget(filePath)
+    }
+  }
+
+  // The editor's own three folders, one per grid size. A fourth Instantiator
+  // block spelled out per size (rather than one more nested Repeater) for the
+  // same scoping reason as the two above.
+  Instantiator {
+    model: FolderListModel {
+      folder: "file://" + root.userPatternsDirFor(5)
+      nameFilters: ["*.picross"]
+      showDirs: false
+      sortField: FolderListModel.Name
+    }
+
+    delegate: FileView {
+      required property string filePath
+      path: filePath
+      watchChanges: true
+      printErrors: false
+      onLoaded: root.ingest(filePath, text())
+      onFileChanged: reload()
+      onLoadFailed: root.forget(filePath)
+      Component.onDestruction: root.forget(filePath)
+    }
+  }
+
+  Instantiator {
+    model: FolderListModel {
+      folder: "file://" + root.userPatternsDirFor(10)
+      nameFilters: ["*.picross"]
+      showDirs: false
+      sortField: FolderListModel.Name
+    }
+
+    delegate: FileView {
+      required property string filePath
+      path: filePath
+      watchChanges: true
+      printErrors: false
+      onLoaded: root.ingest(filePath, text())
+      onFileChanged: reload()
+      onLoadFailed: root.forget(filePath)
+      Component.onDestruction: root.forget(filePath)
+    }
+  }
+
+  Instantiator {
+    model: FolderListModel {
+      folder: "file://" + root.userPatternsDirFor(15)
       nameFilters: ["*.picross"]
       showDirs: false
       sortField: FolderListModel.Name
