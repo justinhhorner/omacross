@@ -20,9 +20,11 @@ Item {
   // Overrides the default user folder. Empty means ~/.config/omacross/patterns.
   property string extraDir: ""
 
-  readonly property string userDir: extraDir !== ""
-    ? extraDir
-    : Quickshell.env("HOME") + "/.config/omacross/patterns"
+  readonly property string userDir: extraDir === ""
+    ? Quickshell.env("HOME") + "/.config/omacross/patterns"
+    : (extraDir === "~" || extraDir.indexOf("~/") === 0
+      ? Quickshell.env("HOME") + extraDir.substring(1)
+      : extraDir)
 
   // Where the pattern editor saves what a player draws — a sibling folder
   // per grid size, so a save never has to guess a difficulty from a picture's

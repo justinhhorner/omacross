@@ -93,6 +93,10 @@ Panel {
   // gone before it plays. Holding here for a beat is what lets it land.
   readonly property int mistakeResultDelayMs: 1000
 
+  // A prompt disables the board's MouseArea mid-gesture, so the release that
+  // would end a drag never arrives; end any live run here instead.
+  onPromptChanged: if (prompt !== "") { dragSelecting = false; dragBroken = false; dragMarking = false }
+
   onOpenedChanged: if (!opened) { dragSelecting = false; dragBroken = false; dragMarking = false; hintAnimating = false }
 
   readonly property var difficulty: Game.difficultyFor(difficultyId)

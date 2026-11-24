@@ -9,7 +9,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-target="${OMACROSS_PLUGIN_DIR:-$HOME/.config/omarchy/plugins/omacross.picross}"
+target="${OMACROSS_PLUGIN_DIR:-$HOME/.config/omarchy/plugins/justinhhorner.picross}"
 
 mkdir -p "$target"
 rsync -a --delete \

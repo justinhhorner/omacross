@@ -20,7 +20,7 @@ var MARKED = 2    // player's own cross-out, freely toggled
 var DIFFICULTIES = [
   { id: "easy", label: "Easy", size: 5, seconds: 600 },
   { id: "normal", label: "Normal", size: 10, seconds: 1800 },
-  { id: "hard", label: "Hard", size: 15, seconds: 1800 }
+  { id: "hard", label: "Hard", size: 15, seconds: 2700 }
 ]
 
 // 2:00, then 4:00, then 8:00 for the third and every mistake after it.

@@ -9,7 +9,7 @@ is not named until you have solved it.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/<you>/omacross.git --enable
+omarchy plugin add https://github.com/justinhhorner/omacross.git --enable
 ```
 
 ## Playing
@@ -30,7 +30,7 @@ together:
 | Hard | 15×15 | 45:00 |
 
 **Fill** a cell you believe is part of the picture. Right, and it stays filled.
-Wrong, and  the clock takes the hit, **2:00** for the first mistake, **4:00** for the
+Wrong, and the clock takes the hit, **2:00** for the first mistake, **4:00** for the
 second, **8:00** for the third and every one after it, so a forgotten cell can
 cost you again. **Cross out** a cell you have reasoned is empty; that is a note
 to yourself.

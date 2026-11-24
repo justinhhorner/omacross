@@ -20,6 +20,8 @@ test("difficulty is a grid size and a clock", () => {
   assert.equal(Game.difficultyFor("normal").size, 10)
   assert.equal(Game.difficultyFor("hard").size, 15)
   assert.ok(Game.difficultyFor("easy").seconds < Game.difficultyFor("hard").seconds)
+  // README promises these exact clocks.
+  assert.deepEqual(Game.DIFFICULTIES.map((d) => d.seconds), [600, 1800, 2700])
 })
 
 test("an unknown difficulty falls back rather than failing", () => {
