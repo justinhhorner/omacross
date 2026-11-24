@@ -204,3 +204,10 @@ test("pinSize round-trips a small, off-center drawing without recentering it", (
   assert.equal(parsed.size, 4)
   assert.deepEqual(parsed.cells, original.cells)
 })
+
+test("parse refuses oversized pictures before building a grid", () => {
+  assert.equal(Puzzle.parse("#".repeat(5000)).ok, false)
+  assert.equal(Puzzle.parse(Array(40).fill("#").join("\n")).ok, false)
+  assert.equal(Puzzle.parse("#".repeat(16385)).ok, false)
+  assert.equal(Puzzle.parse("#".repeat(15)).ok, true)
+})

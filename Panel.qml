@@ -805,7 +805,10 @@ Panel {
 
       // Same measuring rule as the play screen: the hint line is the widest
       // thing here, and centered children do not size their Column.
-      implicitWidth: Math.max(picture.implicitWidth, resultHint.implicitWidth, stats.implicitWidth)
+      // A picture name is user-supplied and unbounded, so it may not widen the
+      // panel past the hint line; the name elides instead.
+      implicitWidth: Math.max(picture.implicitWidth, resultHint.implicitWidth,
+        Math.min(stats.implicitWidth, resultHint.implicitWidth))
       implicitHeight: resultStack.implicitHeight
 
       Column {
@@ -858,6 +861,9 @@ Panel {
 
           Text {
             anchors.horizontalCenter: parent.horizontalCenter
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            width: Math.min(implicitWidth, resultView.width)
             text: resultView.won ? root.game.puzzle.name : "Picture not revealed"
             color: resultView.won ? root.foreground : root.muted
             font.family: root.fontFamily

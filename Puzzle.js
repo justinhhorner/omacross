@@ -25,6 +25,12 @@ var EMPTY_CHARS = "."
 var GRID_LINE = new RegExp("^[" + FILLED_CHARS + EMPTY_CHARS + "]+$")
 var META_LINE = /^([A-Za-z][A-Za-z0-9_-]*)\s*[:=]\s*(.*)$/
 
+// The largest board the game plays (Hard). Checked against the raw text
+// before any grid is built, so an oversized or hostile file is refused
+// cheaply instead of being expanded into a huge square.
+var MAX_SIZE = 15
+var MAX_TEXT_LENGTH = 16384
+
 function isFilledChar(character) {
   return FILLED_CHARS.indexOf(character) >= 0
 }
@@ -177,7 +183,9 @@ function declaredSize(rawSize, normalized) {
 // saved into their patterns directory — a typo there must not take the panel
 // down with it.
 function parse(text, fileName) {
-  var lines = String(text === undefined || text === null ? "" : text).split(/\r?\n/)
+  var source = String(text === undefined || text === null ? "" : text)
+  if (source.length > MAX_TEXT_LENGTH) return { ok: false, error: "file is too large" }
+  var lines = source.split(/\r?\n/)
   var meta = {}
   var rawRows = []
 
@@ -188,6 +196,11 @@ function parse(text, fileName) {
   }
 
   if (rawRows.length === 0) return { ok: false, error: "no picture rows found" }
+
+  var widest = 0
+  for (var w = 0; w < rawRows.length; w++) widest = Math.max(widest, rawRows[w].length)
+  if (rawRows.length > MAX_SIZE || widest > MAX_SIZE)
+    return { ok: false, error: "picture is larger than " + MAX_SIZE + "x" + MAX_SIZE }
 
   var normalized = normalizeRows(rawRows)
   var pinned = declaredSize(meta.size, normalized)

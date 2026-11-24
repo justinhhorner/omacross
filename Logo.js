@@ -1,5 +1,6 @@
 // The square Omarchy mark, as a 13x13 nonogram picture.
 //
+// Copyright (c) David Heinemeier Hansson (MIT; see LICENSE).
 // Transcribed from `/usr/share/omarchy/icon.txt`, whose block art is the same
 // mark drawn at 4 columns and 2 lines per pixel. Held here as literal rows so
 // the title screen has no dependency on a file that may not be installed.

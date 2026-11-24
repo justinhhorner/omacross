@@ -617,6 +617,7 @@ Item {
                       anchors.right: sizeLabel.left
                       anchors.verticalCenter: parent.verticalCenter
                       text: row.modelData.name
+                      textFormat: Text.PlainText
                       elide: Text.ElideRight
                       color: row.current ? root.accent : root.foreground
                       font.family: root.fontFamily
