@@ -6,6 +6,8 @@ Inspired by one of my favorite game boy games from 1995, **Mario's Picross**. Th
 wrong guess costs you time and each further mistake costs more, and the picture
 is not named until you have solved it.
 
+<p align="center"><img src="preview.png" alt="Omacross in the Omarchy bar" width="327"></p>
+
 ## Install
 
 ```bash
