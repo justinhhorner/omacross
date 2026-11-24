@@ -190,6 +190,14 @@ from the rules to anything QML can bind to.
 omarchy plugin remove justinhhorner.picross --yes
 ```
 
+Removing the plugin deletes only its own folder. Your pictures are yours, so
+`~/.config/omacross/` (extra pictures and anything you drew in the editor) is
+left in place; delete it yourself for a completely clean removal:
+
+```bash
+rm -rf ~/.config/omacross
+```
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
